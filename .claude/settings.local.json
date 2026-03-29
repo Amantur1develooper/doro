@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(python -c \":*)",
+      "Bash(mkdir -p /Users/amanturerkinov/Downloads/dorolien/warehouse/management/commands)",
+      "Bash(touch /Users/amanturerkinov/Downloads/dorolien/warehouse/management/__init__.py)",
+      "Bash(touch /Users/amanturerkinov/Downloads/dorolien/warehouse/management/commands/__init__.py)"
+    ]
+  }
+}

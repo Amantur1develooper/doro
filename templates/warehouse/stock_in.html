@@ -1,0 +1,42 @@
+{% extends 'base/base.html' %}
+{% block title %}Приемка товара{% endblock %}
+{% block page_title %}Приемка товара{% endblock %}
+{% block topbar_actions %}<a href="{% url 'warehouses_list' %}" class="btn btn-secondary btn-sm">← Назад</a>{% endblock %}
+{% block content %}
+<div style="max-width:700px;">
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:24px;">📦 Приемка товара на склад</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>Товар *</label>
+          <select name="product" required>
+            <option value="">— Выберите препарат —</option>
+            {% for p in products %}<option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Склад *</label>
+          <select name="warehouse" required>
+            {% for w in warehouses %}<option value="{{ w.pk }}">{{ w.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Серия/Партия *</label><input type="text" name="batch_number" required placeholder="А-12345"></div>
+        <div class="form-group"><label>Срок годности *</label><input type="date" name="expiry_date" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Количество *</label><input type="number" name="quantity" required min="1" value="1"></div>
+        <div class="form-group"><label>Закупочная цена (за ед.)</label><input type="number" name="purchase_price" step="0.01" value="0"></div>
+      </div>
+      <div class="form-group"><label>Примечания</label><textarea name="notes"></textarea></div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">📦 Принять на склад</button>
+        <a href="{% url 'warehouses_list' %}" class="btn btn-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

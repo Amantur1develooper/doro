@@ -1,0 +1,51 @@
+{% extends 'base/base.html' %}
+{% block title %}Новый пользователь{% endblock %}
+{% block page_title %}Новый пользователь{% endblock %}
+{% block topbar_actions %}<a href="{% url 'users_list' %}" class="btn btn-secondary btn-sm">← Назад</a>{% endblock %}
+{% block content %}
+<div style="max-width:600px;">
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:24px;">🔑 Новый пользователь</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group"><label>Логин *</label><input type="text" name="username" required></div>
+        <div class="form-group"><label>Пароль *</label><input type="password" name="password" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Имя</label><input type="text" name="first_name"></div>
+        <div class="form-group"><label>Фамилия</label><input type="text" name="last_name"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+        <div class="form-group"><label>Телефон</label><input type="text" name="phone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Роль *</label>
+          <select name="role">
+            <option value="med_rep">Медицинский представитель</option>
+            <option value="sales_manager">Руководитель продаж</option>
+            <option value="warehouse">Складской сотрудник</option>
+            <option value="accountant">Бухгалтер</option>
+            <option value="analyst">Аналитик</option>
+            <option value="director">Директор</option>
+            <option value="superadmin">Суперадминистратор</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Регион</label>
+          <select name="region">
+            <option value="">— Выберите —</option>
+            {% for r in regions %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">💾 Создать</button>
+        <a href="{% url 'users_list' %}" class="btn btn-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base/base.html' %}
+{% block title %}Мой профиль{% endblock %}
+{% block page_title %}Мой профиль{% endblock %}
+{% block content %}
+<div style="max-width:500px;">
+  <div class="card">
+    <div style="text-align:center;padding:20px 0;">
+      <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin:0 auto 16px;">
+        {{ user.first_name.0|default:user.username.0|upper }}
+      </div>
+      <h2 style="font-size:20px;font-weight:700;">{{ user.get_full_name|default:user.username }}</h2>
+      <span class="badge badge-blue mt-1">{{ user.get_role_display }}</span>
+    </div>
+    <div class="detail-item"><div class="detail-label">Логин</div><div class="detail-value">{{ user.username }}</div></div>
+    <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">{{ user.email|default:"—" }}</div></div>
+    <div class="detail-item"><div class="detail-label">Телефон</div><div class="detail-value">{{ user.phone|default:"—" }}</div></div>
+    <div class="detail-item"><div class="detail-label">Регион</div><div class="detail-value">{{ user.region.name|default:"—" }}</div></div>
+    <div class="detail-item"><div class="detail-label">Дата регистрации</div><div class="detail-value">{{ user.date_joined|date:"d.m.Y" }}</div></div>
+    <a href="{% url 'logout' %}" class="btn btn-danger mt-2">🚪 Выйти из системы</a>
+  </div>
+</div>
+{% endblock %}

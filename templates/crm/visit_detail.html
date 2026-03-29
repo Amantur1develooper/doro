@@ -1,0 +1,113 @@
+{% extends 'base/base.html' %}
+{% block title %}Визит #{{ visit.pk }}{% endblock %}
+{% block page_title %}Визит #{{ visit.pk }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'visits_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div>
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:20px;">📋 Информация о визите</h3>
+      <div class="detail-item"><div class="detail-label">Сотрудник</div><div class="detail-value">{{ visit.employee.get_full_name }}</div></div>
+      <div class="detail-item"><div class="detail-label">Тип</div><div class="detail-value">{% if visit.visit_type == 'doctor' %}👨‍⚕️ Врач{% else %}🏥 Аптека{% endif %}</div></div>
+      <div class="detail-item">
+        <div class="detail-label">Объект визита</div>
+        <div class="detail-value">
+          {% if visit.doctor %}<a href="{% url 'doctor_detail' visit.doctor.pk %}" style="color:var(--accent);">{{ visit.doctor.full_name }}</a>
+          {% elif visit.pharmacy %}<a href="{% url 'pharmacy_detail' visit.pharmacy.pk %}" style="color:var(--accent);">{{ visit.pharmacy.name }}</a>{% endif %}
+        </div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Статус</div>
+        <div>
+          {% if visit.status == 'done' %}<span class="badge badge-green">✅ Выполнен</span>
+          {% elif visit.status == 'planned' %}<span class="badge badge-blue">📋 Запланирован</span>
+          {% elif visit.status == 'cancelled' %}<span class="badge badge-red">❌ Отменён</span>
+          {% else %}<span class="badge badge-yellow">🔄 Перенесён</span>{% endif %}
+        </div>
+      </div>
+      <div class="detail-item"><div class="detail-label">Плановая дата</div><div class="detail-value">{{ visit.planned_date|date:"d.m.Y H:i" }}</div></div>
+      {% if visit.actual_date %}
+      <div class="detail-item"><div class="detail-label">Фактическая дата</div><div class="detail-value">{{ visit.actual_date|date:"d.m.Y H:i" }}</div></div>
+      {% endif %}
+      {% if visit.latitude %}
+      <div class="detail-item">
+        <div class="detail-label">GPS координаты</div>
+        <div class="detail-value">📍 {{ visit.latitude }}, {{ visit.longitude }}</div>
+      </div>
+      {% endif %}
+      {% if visit.comment %}
+      <div class="detail-item"><div class="detail-label">Комментарий</div><div class="detail-value">{{ visit.comment }}</div></div>
+      {% endif %}
+      {% if visit.result %}
+      <div class="detail-item"><div class="detail-label">Результат</div><div class="detail-value">{{ visit.result }}</div></div>
+      {% endif %}
+    </div>
+
+    {% if visit.status == 'planned' %}
+    <div class="card mt-2">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;">✅ Отметить как выполненный</h3>
+      <form method="post" action="{% url 'visit_complete' visit.pk %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group"><label>Результат встречи</label><textarea name="result" placeholder="Что обсудили, договорились..."></textarea></div>
+        <div class="form-group"><label>Фото с места встречи</label><input type="file" name="photos" accept="image/*" multiple></div>
+        <input type="hidden" name="latitude" id="lat_input">
+        <input type="hidden" name="longitude" id="lng_input">
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="getGPS()">📍 Получить GPS</button>
+          <button type="submit" class="btn btn-success">✅ Выполнен</button>
+        </div>
+        <div id="gps_status" style="font-size:12px;color:var(--text2);margin-top:8px;"></div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    {% if visit.photos.all %}
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📷 Фотоотчеты</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;">
+        {% for photo in visit.photos.all %}
+        <a href="{{ photo.photo.url }}" target="_blank">
+          <img src="{{ photo.photo.url }}" style="width:100%;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if visit.audios.all %}
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">🎙️ Аудиозаписи</h3>
+      {% for audio in visit.audios.all %}
+      <div style="margin-bottom:12px;">
+        <audio controls style="width:100%;">
+          <source src="{{ audio.audio.url }}">
+        </audio>
+        <div style="font-size:11px;color:var(--text2);">{{ audio.uploaded_at|date:"d.m.Y H:i" }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function getGPS() {
+  if (navigator.geolocation) {
+    document.getElementById('gps_status').textContent = 'Получаем координаты...';
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      document.getElementById('lat_input').value = pos.coords.latitude;
+      document.getElementById('lng_input').value = pos.coords.longitude;
+      document.getElementById('gps_status').textContent = '✅ GPS: ' + pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5);
+    }, function(err) {
+      document.getElementById('gps_status').textContent = '❌ Ошибка GPS: ' + err.message;
+    });
+  }
+}
+</script>
+{% endblock %}

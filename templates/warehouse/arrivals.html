@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Приход товара{% endblock %}
+{% block page_title %}Приход товара{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Приходы <span class="badge bg-secondary">{{ arrivals|length }}</span></h5>
+  <a href="{{ url_for('arrival_add') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Оформить приход</a>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Дата</th><th>Склад</th><th>Поставщик</th><th>Документ</th><th>Принял</th><th class="text-center">Позиций</th><th class="text-end">Сумма</th></tr></thead>
+      <tbody>
+        {% for a in arrivals %}<tr>
+          <td>{{ a.arrival_date }}</td>
+          <td>{{ a.warehouse_name }}</td>
+          <td>{{ a.supplier or '—' }}</td>
+          <td><small>{{ a.document_number or '—' }}</small></td>
+          <td><small>{{ a.user_name }}</small></td>
+          <td class="text-center"><span class="badge bg-info">{{ a.item_count }}</span></td>
+          <td class="text-end fw-semibold">{{ '%.0f'|format(a.total_amount) }} сом</td>
+        </tr>{% else %}
+        <tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-truck fs-2 d-block mb-2 opacity-25"></i>Приходов нет. <a href="{{ url_for('arrival_add') }}">Оформить первый</a></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

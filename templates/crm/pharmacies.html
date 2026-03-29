@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Аптеки{% endblock %}
+{% block page_title %}База аптек{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Аптеки <span class="badge bg-secondary">{{ pharmacies|length }}</span></h5>
+  <a href="{{ url_for('pharmacy_add') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i> Добавить аптеку</a>
+</div>
+<div class="filters-bar">
+  <form method="GET" class="row g-2">
+    <div class="col-md-5"><input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск по названию, адресу..." value="{{ q }}"></div>
+    <div class="col-md-4"><select name="region_id" class="form-select form-select-sm"><option value="">Все регионы</option>{% for r in regions %}<option value="{{ r.id }}" {% if request.args.get('region_id')==r.id|string %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Найти</button></div>
+  </form>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Название</th><th>Адрес</th><th>Регион</th><th>Контакт</th><th>Представитель</th><th class="text-end">Продажи</th><th class="text-end">Долг</th><th></th></tr></thead>
+        <tbody>
+          {% for ph in pharmacies %}
+          <tr>
+            <td><a href="{{ url_for('pharmacy_detail', pid=ph.id) }}" class="fw-semibold text-decoration-none">{{ ph.name }}</a></td>
+            <td><small class="text-muted">{{ ph.address or '—' }}</small></td>
+            <td>{{ ph.region_name or '—' }}</td>
+            <td><small>{{ ph.contact_person or '—' }}<br>{{ ph.phone or '' }}</small></td>
+            <td>{{ ph.rep_name or '—' }}</td>
+            <td class="text-end fw-semibold">{{ '%.0f'|format(ph.total_sales or 0) }}</td>
+            <td class="text-end {% if ph.debt > 0 %}text-danger fw-semibold{% endif %}">{{ '%.0f'|format(ph.debt or 0) }}</td>
+            <td>
+              <div class="d-flex gap-1 justify-content-end">
+                <a href="{{ url_for('pharmacy_detail', pid=ph.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                <a href="{{ url_for('pharmacy_edit', pid=ph.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-shop fs-2 d-block mb-2 opacity-25"></i>Аптеки не найдены. <a href="{{ url_for('pharmacy_add') }}">Добавить первую</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

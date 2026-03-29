@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Остатки{% endblock %}
+{% block page_title %}Складские остатки{% endblock %}
+{% block content %}
+<!-- Summary Cards -->
+<div class="row g-3 mb-3">
+  {% for s in summary %}
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-label">{{ s.name }}</div>
+      <div class="kpi-value">{{ '%.0f'|format(s.total_qty or 0) }}</div>
+      <div class="text-muted" style="font-size:.75rem">{{ s.products }} позиций · {{ '%.0f'|format(s.total_value or 0) }} сом</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Остатки <span class="badge bg-secondary">{{ stock_items|length }}</span></h5>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('export_stock') }}" class="btn btn-success btn-sm"><i class="bi bi-file-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('arrival_add') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Приход</a>
+  </div>
+</div>
+
+<div class="filters-bar">
+  <form method="GET" class="row g-2">
+    <div class="col-md-3"><input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск..." value="{{ q }}"></div>
+    <div class="col-md-3"><select name="wh_id" class="form-select form-select-sm"><option value="">Все склады</option>{% for w in warehouses %}<option value="{{ w.id }}" {% if wh_id==w.id|string %}selected{% endif %}>{{ w.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><select name="exp_filter" class="form-select form-select-sm">
+      <option value="">Все</option>
+      <option value="expiring" {% if exp_filter=='expiring' %}selected{% endif %}>⚠️ Истекает &lt;30 дней</option>
+      <option value="expired" {% if exp_filter=='expired' %}selected{% endif %}>❌ Просрочено</option>
+      <option value="low" {% if exp_filter=='low' %}selected{% endif %}>📉 Мало (&lt;10)</option>
+    </select></div>
+    <div class="col-md-3"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Найти</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Препарат</th><th>Категория</th><th>Партия</th><th>Срок годности</th><th>Склад</th><th class="text-end">Остаток</th><th class="text-end">Резерв</th><th class="text-end">Стоимость</th></tr></thead>
+        <tbody>
+          {% for item in stock_items %}
+          {% set is_expired = item.expiry_date and item.expiry_date < today %}
+          {% set is_expiring = item.expiry_date and item.expiry_date <= exp_date and not is_expired %}
+          <tr class="{% if is_expired %}table-danger{% elif is_expiring %}table-warning{% endif %}">
+            <td><div class="fw-semibold">{{ item.product_name }}</div><small class="text-muted">{{ item.unit }}</small></td>
+            <td><span class="badge bg-light text-dark">{{ item.category_name or '—' }}</span></td>
+            <td><small>{{ item.batch_number or '—' }}</small></td>
+            <td>
+              {% if item.expiry_date %}
+                {% if is_expired %}<span class="expiry-expired"><i class="bi bi-x-circle me-1"></i>{{ item.expiry_date }}</span>
+                {% elif is_expiring %}<span class="expiry-soon"><i class="bi bi-clock me-1"></i>{{ item.expiry_date }}</span>
+                {% else %}<span class="expiry-ok">{{ item.expiry_date }}</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ item.warehouse_name }}</td>
+            <td class="text-end fw-semibold">{{ '%.0f'|format(item.quantity) }}</td>
+            <td class="text-end text-muted">{{ '%.0f'|format(item.reserved or 0) }}</td>
+            <td class="text-end">{{ '%.0f'|format((item.quantity or 0) * (item.sale_price or 0)) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center py-4 text-muted"><i class="bi bi-boxes fs-2 d-block mb-2 opacity-25"></i>Остатки не найдены</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

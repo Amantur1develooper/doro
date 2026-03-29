@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dorolien{% endblock %} — CRM & Склад</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --sidebar-width: 260px;
+      --primary: #1a56db;
+      --primary-dark: #1248b3;
+      --sidebar-bg: #0f172a;
+      --sidebar-hover: #1e293b;
+      --text-muted2: #94a3b8;
+    }
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #f1f5f9; min-height: 100vh; }
+
+    /* SIDEBAR */
+    #sidebar {
+      position: fixed; top: 0; left: 0;
+      width: var(--sidebar-width); height: 100vh;
+      background: var(--sidebar-bg);
+      overflow-y: auto; z-index: 1000;
+      transition: transform .3s ease;
+      display: flex; flex-direction: column;
+    }
+    .sidebar-brand {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #1e293b;
+      text-decoration: none;
+    }
+    .sidebar-brand .brand-name {
+      font-size: 1.2rem; font-weight: 700;
+      color: #fff; letter-spacing: .5px;
+    }
+    .sidebar-brand .brand-sub {
+      font-size: .7rem; color: var(--text-muted2);
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .sidebar-section {
+      padding: .75rem 1.25rem .25rem;
+      font-size: .65rem; font-weight: 600;
+      color: var(--text-muted2); text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .sidebar-link {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .55rem 1.25rem; color: #cbd5e1;
+      text-decoration: none; font-size: .875rem;
+      border-radius: 0; transition: all .15s;
+      position: relative;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      background: var(--sidebar-hover);
+      color: #fff;
+    }
+    .sidebar-link.active::before {
+      content: ''; position: absolute; left: 0; top: 0;
+      bottom: 0; width: 3px; background: var(--primary);
+      border-radius: 0 2px 2px 0;
+    }
+    .sidebar-link .badge { margin-left: auto; font-size: .65rem; }
+    .sidebar-footer {
+      margin-top: auto; padding: 1rem 1.25rem;
+      border-top: 1px solid #1e293b;
+    }
+    .user-card {
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .user-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--primary); display: flex;
+      align-items: center; justify-content: center;
+      color: #fff; font-weight: 600; font-size: .875rem;
+      flex-shrink: 0;
+    }
+    .user-name { font-size: .8rem; font-weight: 600; color: #fff; }
+    .user-role { font-size: .7rem; color: var(--text-muted2); }
+
+    /* MAIN CONTENT */
+    #main-content {
+      margin-left: var(--sidebar-width);
+      min-height: 100vh;
+      transition: margin .3s ease;
+    }
+    .topbar {
+      background: #fff; border-bottom: 1px solid #e2e8f0;
+      padding: .75rem 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-title { font-size: 1rem; font-weight: 600; color: #0f172a; }
+    .page-content { padding: 1.5rem; }
+
+    /* CARDS */
+    .card { border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
+    .card-header { background: #fff; border-bottom: 1px solid #e2e8f0; font-weight: 600; }
+
+    /* KPI CARDS */
+    .kpi-card {
+      background: #fff; border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 1.25rem; position: relative; overflow: hidden;
+    }
+    .kpi-card .kpi-icon {
+      width: 48px; height: 48px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+    }
+    .kpi-card .kpi-value { font-size: 1.5rem; font-weight: 700; color: #0f172a; }
+    .kpi-card .kpi-label { font-size: .8rem; color: #64748b; font-weight: 500; }
+    .kpi-card .kpi-change { font-size: .75rem; }
+
+    /* TABLES */
+    .table { font-size: .875rem; }
+    .table th { font-size: .75rem; text-transform: uppercase; letter-spacing: .5px;
+                color: #64748b; font-weight: 600; border-top: none; background: #f8fafc; }
+    .table td { vertical-align: middle; }
+    .table-hover tbody tr:hover { background: #f8fafc; }
+
+    /* BADGES */
+    .status-badge {
+      padding: .25rem .65rem; border-radius: 20px;
+      font-size: .75rem; font-weight: 600; white-space: nowrap;
+    }
+    .status-planned { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #dcfce7; color: #166534; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+    .status-postponed { background: #fef3c7; color: #92400e; }
+    .status-draft { background: #f1f5f9; color: #475569; }
+    .status-confirmed { background: #dcfce7; color: #166534; }
+    .status-expiring { background: #fef3c7; color: #92400e; }
+    .status-expired { background: #fee2e2; color: #991b1b; }
+    .status-low { background: #fff7ed; color: #c2410c; }
+
+    /* BUTTONS */
+    .btn-primary { background: var(--primary); border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+
+    /* FORMS */
+    .form-control, .form-select {
+      border-color: #e2e8f0; font-size: .875rem;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,.1);
+    }
+    .form-label { font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: .35rem; }
+
+    /* ALERTS */
+    .alert { border-radius: 10px; font-size: .875rem; }
+
+    /* FILTERS BAR */
+    .filters-bar {
+      background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 10px; padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    /* MOBILE */
+    .sidebar-toggle {
+      display: none; background: none; border: none;
+      color: #0f172a; font-size: 1.25rem; cursor: pointer;
+    }
+    @media (max-width: 768px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #main-content { margin-left: 0; }
+      .sidebar-toggle { display: block; }
+      .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; }
+      .overlay.show { display: block; }
+    }
+
+    /* EXPIRY COLORS */
+    .expiry-expired { color: #dc2626; font-weight: 600; }
+    .expiry-soon { color: #d97706; font-weight: 600; }
+    .expiry-ok { color: #16a34a; }
+
+    /* Scrollbar */
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <a href="{{ url_for('dashboard') }}" class="sidebar-brand d-block">
+    <div class="brand-name">🏥 Dorolien</div>
+    <div class="brand-sub">CRM + Склад + Аналитика</div>
+  </a>
+
+  <div class="py-2">
+    <div class="sidebar-section">Главная</div>
+    <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint=='dashboard' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i> Дашборд
+    </a>
+
+    <div class="sidebar-section mt-2">CRM</div>
+    <a href="{{ url_for('doctors') }}" class="sidebar-link {% if 'doctor' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-person-badge"></i> Врачи
+    </a>
+    <a href="{{ url_for('pharmacies') }}" class="sidebar-link {% if 'pharmac' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-shop"></i> Аптеки
+    </a>
+    <a href="{{ url_for('visits') }}" class="sidebar-link {% if 'visit' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-geo-alt"></i> Визиты
+      {% if alerts.get('expiring',0) > 0 %}
+      {% endif %}
+    </a>
+
+    <div class="sidebar-section mt-2">Склад</div>
+    <a href="{{ url_for('products') }}" class="sidebar-link {% if request.endpoint in ['products','product_add','product_edit'] %}active{% endif %}">
+      <i class="bi bi-capsule"></i> Препараты
+    </a>
+    <a href="{{ url_for('stock') }}" class="sidebar-link {% if request.endpoint=='stock' %}active{% endif %}">
+      <i class="bi bi-boxes"></i> Остатки
+      {% if alerts.get('expiring', 0) > 0 %}
+      <span class="badge bg-warning text-dark">{{ alerts.expiring }}</span>
+      {% endif %}
+    </a>
+    <a href="{{ url_for('arrivals') }}" class="sidebar-link {% if 'arrival' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-truck"></i> Приход товара
+    </a>
+    <a href="{{ url_for('warehouses') }}" class="sidebar-link {% if 'warehouse' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-building"></i> Склады
+    </a>
+
+    <div class="sidebar-section mt-2">Продажи</div>
+    <a href="{{ url_for('sales') }}" class="sidebar-link {% if request.endpoint in ['sales','sale_add','sale_detail'] %}active{% endif %}">
+      <i class="bi bi-cart-check"></i> Продажи
+    </a>
+
+    <div class="sidebar-section mt-2">Отчеты</div>
+    <a href="{{ url_for('analytics') }}" class="sidebar-link {% if request.endpoint=='analytics' %}active{% endif %}">
+      <i class="bi bi-bar-chart-line"></i> Аналитика
+    </a>
+    <a href="{{ url_for('reports') }}" class="sidebar-link {% if request.endpoint=='reports' %}active{% endif %}">
+      <i class="bi bi-file-earmark-spreadsheet"></i> Отчеты
+    </a>
+    <a href="{{ url_for('excel_import') }}" class="sidebar-link {% if request.endpoint=='excel_import' %}active{% endif %}">
+      <i class="bi bi-file-earmark-excel"></i> Excel импорт
+    </a>
+
+    {% if session.get('role') in ['superadmin', 'director'] %}
+    <div class="sidebar-section mt-2">Администрирование</div>
+    <a href="{{ url_for('users') }}" class="sidebar-link {% if 'user' in request.endpoint %}active{% endif %}">
+      <i class="bi bi-people"></i> Пользователи
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">{{ (current_user.full_name or 'U')[0].upper() }}</div>
+      <div>
+        <div class="user-name">{{ current_user.full_name if current_user else '' }}</div>
+        <div class="user-role">{{ current_user.role_name if current_user else '' }}</div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="ms-auto text-muted" title="Выход">
+        <i class="bi bi-box-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main-content">
+  <div class="topbar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">
+      <i class="bi bi-list"></i>
+    </button>
+    <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      {% if alerts.get('low_stock', 0) > 0 or alerts.get('expiring', 0) > 0 %}
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-warning position-relative" data-bs-toggle="dropdown">
+          <i class="bi bi-bell"></i>
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem">
+            {{ (alerts.get('low_stock',0) + alerts.get('expiring',0)) }}
+          </span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" style="min-width:280px">
+          <li><h6 class="dropdown-header">Уведомления</h6></li>
+          {% if alerts.get('low_stock', 0) > 0 %}
+          <li><a class="dropdown-item" href="{{ url_for('stock', exp_filter='low') }}">
+            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+            Мало на складе: {{ alerts.low_stock }} позиций
+          </a></li>
+          {% endif %}
+          {% if alerts.get('expiring', 0) > 0 %}
+          <li><a class="dropdown-item" href="{{ url_for('stock', exp_filter='expiring') }}">
+            <i class="bi bi-clock-history text-danger me-2"></i>
+            Истекает срок: {{ alerts.expiring }} партий
+          </a></li>
+          {% endif %}
+          {% if alerts.get('debt', 0) > 0 %}
+          <li><a class="dropdown-item" href="{{ url_for('pharmacies') }}">
+            <i class="bi bi-credit-card text-danger me-2"></i>
+            Задолженность: {{ '%.0f'|format(alerts.debt) }} сом
+          </a></li>
+          {% endif %}
+        </ul>
+      </div>
+      {% endif %}
+      <a href="{{ url_for('profile') }}" class="d-flex align-items-center gap-2 text-decoration-none text-dark">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;font-weight:600">
+          {{ (current_user.full_name or 'U')[0].upper() if current_user else 'U' }}
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="page-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

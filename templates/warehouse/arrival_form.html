@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Приход товара{% endblock %}
+{% block page_title %}Оформление прихода{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2">
+    <a href="{{ url_for('arrivals') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <span>Новый приход товара</span>
+  </div>
+  <div class="card-body">
+    <form method="POST" id="arrivalForm">
+      <div class="row g-3 mb-4">
+        <div class="col-md-3"><label class="form-label">Склад <span class="text-danger">*</span></label><select name="warehouse_id" class="form-select" required><option value="">Выберите...</option>{% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-3"><label class="form-label">Дата прихода</label><input type="date" name="arrival_date" class="form-control" value="{{ now.date().isoformat() }}"></div>
+        <div class="col-md-3"><label class="form-label">Поставщик</label><input type="text" name="supplier" class="form-control" placeholder="Название поставщика"></div>
+        <div class="col-md-3"><label class="form-label">Номер документа</label><input type="text" name="document_number" class="form-control" placeholder="Накладная №..."></div>
+        <div class="col-12"><label class="form-label">Заметки</label><input type="text" name="notes" class="form-control"></div>
+      </div>
+      <h6 class="fw-bold mb-3">Товарные позиции</h6>
+      <div class="table-responsive">
+        <table class="table border" id="itemsTable">
+          <thead class="table-light"><tr><th>Препарат</th><th>Партия</th><th>Срок годности</th><th>Количество</th><th>Цена закупки</th><th>Сумма</th><th></th></tr></thead>
+          <tbody id="itemsBody">
+            <tr class="item-row">
+              <td><select name="product_id[]" class="form-select form-select-sm" required><option value="">Выберите...</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></td>
+              <td><input type="text" name="batch_number[]" class="form-control form-control-sm" placeholder="Партия №"></td>
+              <td><input type="date" name="expiry_date[]" class="form-control form-control-sm"></td>
+              <td><input type="number" name="quantity[]" class="form-control form-control-sm qty-input" step="0.01" min="0" placeholder="0"></td>
+              <td><input type="number" name="purchase_price[]" class="form-control form-control-sm price-input" step="0.01" min="0" placeholder="0.00"></td>
+              <td><span class="row-total fw-semibold text-muted">0</span></td>
+              <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addRow()"><i class="bi bi-plus me-1"></i>Добавить строку</button>
+        <div class="fw-bold fs-5">Итого: <span id="grandTotal">0</span> сом</div>
+      </div>
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Оформить приход</button>
+        <a href="{{ url_for('arrivals') }}" class="btn btn-outline-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const productsHTML = document.querySelector('select[name="product_id[]"]').innerHTML;
+function addRow() {
+  const tbody = document.getElementById('itemsBody');
+  const tr = document.createElement('tr');
+  tr.className = 'item-row';
+  tr.innerHTML = `<td><select name="product_id[]" class="form-select form-select-sm" required>${productsHTML}</select></td>
+    <td><input type="text" name="batch_number[]" class="form-control form-control-sm" placeholder="Партия №"></td>
+    <td><input type="date" name="expiry_date[]" class="form-control form-control-sm"></td>
+    <td><input type="number" name="quantity[]" class="form-control form-control-sm qty-input" step="0.01" min="0" placeholder="0"></td>
+    <td><input type="number" name="purchase_price[]" class="form-control form-control-sm price-input" step="0.01" min="0" placeholder="0.00"></td>
+    <td><span class="row-total fw-semibold text-muted">0</span></td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td>`;
+  tbody.appendChild(tr);
+  attachListeners(tr);
+}
+function attachListeners(row) {
+  row.querySelector('.remove-row').addEventListener('click', () => { row.remove(); calcTotal(); });
+  row.querySelectorAll('.qty-input, .price-input').forEach(inp => inp.addEventListener('input', () => {
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const price = parseFloat(row.querySelector('.price-input').value) || 0;
+    row.querySelector('.row-total').textContent = (qty*price).toLocaleString('ru', {maximumFractionDigits:2});
+    calcTotal();
+  }));
+}
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const price = parseFloat(row.querySelector('.price-input').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('grandTotal').textContent = total.toLocaleString('ru', {maximumFractionDigits:2});
+}
+document.querySelectorAll('.item-row').forEach(attachListeners);
+document.querySelector('.remove-row').addEventListener('click', function() { this.closest('tr').remove(); calcTotal(); });
+</script>
+{% endblock %}

@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}Дашборд{% endblock %}
+{% block page_title %}Дашборд{% endblock %}
+
+{% block content %}
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card">
+      <div class="kpi-icon bg-primary bg-opacity-10 mb-2"><i class="bi bi-currency-dollar text-primary"></i></div>
+      <div class="kpi-value">{{ '%.0f'|format(total_sales) }}</div>
+      <div class="kpi-label">Продажи (месяц), сом</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card">
+      <div class="kpi-icon bg-success bg-opacity-10 mb-2"><i class="bi bi-graph-up text-success"></i></div>
+      <div class="kpi-value">{{ '%.0f'|format(total_margin) }}</div>
+      <div class="kpi-label">Маржа (месяц), сом</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card">
+      <div class="kpi-icon bg-info bg-opacity-10 mb-2"><i class="bi bi-geo-alt text-info"></i></div>
+      <div class="kpi-value">{{ visits_today }}</div>
+      <div class="kpi-label">Визитов сегодня</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card">
+      <div class="kpi-icon bg-purple bg-opacity-10 mb-2"><i class="bi bi-calendar-check text-purple" style="color:#7c3aed"></i></div>
+      <div class="kpi-value">{{ visits_month }}</div>
+      <div class="kpi-label">Визитов за месяц</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card">
+      <div class="kpi-icon bg-warning bg-opacity-10 mb-2"><i class="bi bi-exclamation-triangle text-warning"></i></div>
+      <div class="kpi-value">{{ '%.0f'|format(total_debt) }}</div>
+      <div class="kpi-label">Задолженность, сом</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card">
+      <div class="kpi-icon bg-secondary bg-opacity-10 mb-2"><i class="bi bi-capsule text-secondary"></i></div>
+      <div class="kpi-value">{{ product_count }}</div>
+      <div class="kpi-label">Препаратов в базе</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Sales Chart -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-bar-chart me-2 text-primary"></i>Динамика продаж</span>
+        <a href="{{ url_for('analytics') }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+      </div>
+      <div class="card-body">
+        <canvas id="salesChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Reps -->
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-trophy me-2 text-warning"></i>Топ представителей</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>#</th><th>Сотрудник</th><th class="text-end">Продажи</th><th class="text-end">Визиты</th></tr></thead>
+          <tbody>
+            {% for rep in top_reps %}
+            <tr>
+              <td><span class="badge bg-primary">{{ loop.index }}</span></td>
+              <td>{{ rep.full_name }}</td>
+              <td class="text-end fw-semibold">{{ '%.0f'|format(rep.total) }}</td>
+              <td class="text-end">{{ rep.cnt }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-3">Нет данных</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Expiring Products -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history me-2 text-danger"></i>Истекающий срок годности</span>
+        <a href="{{ url_for('stock', exp_filter='expiring') }}" class="btn btn-sm btn-outline-danger">Все</a>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Препарат</th><th>Партия</th><th>Срок</th><th class="text-end">Остаток</th></tr></thead>
+          <tbody>
+            {% for item in expiring_products %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td><small class="text-muted">{{ item.batch_number }}</small></td>
+              <td>
+                {% set today_str = now.date().isoformat() %}
+                {% if item.expiry_date < today_str %}
+                <span class="expiry-expired">{{ item.expiry_date }} ⚠️</span>
+                {% else %}
+                <span class="expiry-soon">{{ item.expiry_date }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end">{{ item.quantity }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-3">✓ Все в порядке</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Visits -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-geo-alt me-2 text-info"></i>Последние визиты</span>
+        <a href="{{ url_for('visits') }}" class="btn btn-sm btn-outline-info">Все</a>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Сотрудник</th><th>Клиент</th><th>Тип</th><th>Статус</th></tr></thead>
+          <tbody>
+            {% for v in recent_visits %}
+            <tr>
+              <td><small>{{ v.rep_name }}</small></td>
+              <td><small>{{ v.client_name }}</small></td>
+              <td>
+                {% if v.visit_type == 'doctor' %}
+                <span class="badge bg-info">Врач</span>
+                {% else %}
+                <span class="badge bg-success">Аптека</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="status-badge status-{{ v.status }}">
+                  {% if v.status == 'planned' %}Запланирован
+                  {% elif v.status == 'completed' %}Выполнен
+                  {% elif v.status == 'cancelled' %}Отменен
+                  {% else %}Перенесен{% endif %}
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-3">Нет визитов</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Low Stock -->
+  {% if low_stock %}
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-header text-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>Низкий остаток на складе
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          {% for item in low_stock %}
+          <div class="col-md-3 col-6">
+            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+              <small class="text-truncate me-2">{{ item.name }}</small>
+              <span class="badge bg-warning text-dark">{{ item.qty }} {{ item.unit }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chartData = {{ chart_data|safe }};
+const ctx = document.getElementById('salesChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: chartData.map(d => d.month),
+    datasets: [{
+      label: 'Продажи (сом)',
+      data: chartData.map(d => d.amount),
+      backgroundColor: 'rgba(26,86,219,0.8)',
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(0,0,0,.05)' },
+        ticks: { callback: v => v.toLocaleString('ru') }
+      },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
+{% endblock %}

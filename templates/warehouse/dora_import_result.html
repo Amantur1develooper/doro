@@ -1,0 +1,31 @@
+{% extends 'base/base.html' %}
+{% block title %}Результат импорта{% endblock %}
+{% block page_title %}Результат импорта{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom:1.5rem;">
+  <h1>📋 Результат импорта</h1>
+</div>
+
+{% if messages %}
+{% for msg in messages %}
+<div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-weight:600;
+  background:{% if msg.tags == 'error' %}#fee2e2;color:#991b1b{% else %}#dcfce7;color:#166534{% endif %};">
+  {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="card" style="max-width:700px;">
+  <div class="card-header" style="padding:.75rem 1.25rem;border-bottom:1px solid var(--border);">
+    <strong>Вывод команды</strong>
+  </div>
+  <pre style="padding:1.25rem;font-size:.83rem;line-height:1.6;white-space:pre-wrap;margin:0;">{{ output }}</pre>
+</div>
+
+<div style="margin-top:1.25rem;display:flex;gap:1rem;">
+  <a href="{% url 'dora_report' %}" class="btn btn-primary">📂 Просмотреть данные</a>
+  <a href="{% url 'products_list' %}" class="btn" style="background:var(--bg2,#f1f5f9);">💊 Перейти к товарам</a>
+  <a href="{% url 'movements_list' %}" class="btn" style="background:var(--bg2,#f1f5f9);">🔄 Движение товаров</a>
+</div>
+{% endblock %}

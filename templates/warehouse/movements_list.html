@@ -1,0 +1,39 @@
+{% extends 'base/base.html' %}
+{% block title %}Движение товаров{% endblock %}
+{% block page_title %}Движение товаров{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🔄 Движение товаров</h1>
+</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Дата</th><th>Тип</th><th>Товар</th><th>Партия</th><th>Склад</th><th>Кол-во</th><th>Цена</th><th>Сотрудник</th><th>Примечания</th></tr>
+    </thead>
+    <tbody>
+      {% for m in movements %}
+      <tr>
+        <td>{{ m.date|date:"d.m.Y H:i" }}</td>
+        <td>
+          {% if m.movement_type == 'in' %}<span class="badge badge-green">📥 Приход</span>
+          {% elif m.movement_type == 'out' %}<span class="badge badge-blue">📤 Расход</span>
+          {% elif m.movement_type == 'writeoff' %}<span class="badge badge-red">🗑️ Списание</span>
+          {% elif m.movement_type == 'return' %}<span class="badge badge-yellow">↩️ Возврат</span>
+          {% else %}<span class="badge badge-gray">{{ m.get_movement_type_display }}</span>{% endif %}
+        </td>
+        <td><a href="{% url 'product_detail' m.batch.product.pk %}" style="color:var(--accent);">{{ m.batch.product.name }}</a></td>
+        <td>{{ m.batch.batch_number }}</td>
+        <td>{{ m.batch.warehouse.name }}</td>
+        <td style="font-weight:600;">{{ m.quantity }}</td>
+        <td>{{ m.price|floatformat:2 }}</td>
+        <td>{{ m.employee.get_full_name|default:"—" }}</td>
+        <td>{{ m.notes|truncatechars:40|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" style="text-align:center;color:var(--text2);padding:30px;">Нет данных</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

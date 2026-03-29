@@ -1,0 +1,202 @@
+{% extends 'base/base.html' %}
+{% block title %}Дора Лайн — движение товаров{% endblock %}
+{% block page_title %}Дора Лайн — движение товаров{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+  <h1>📂 Дора Лайн — движение товаров</h1>
+  <a href="{% url 'dora_import' %}" class="btn btn-primary">📥 Импортировать в базу данных</a>
+</div>
+
+{% if errors %}
+<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:1rem;margin-bottom:1.5rem;">
+  <strong>⚠️ Ошибки при чтении файлов:</strong>
+  <ul style="margin:0.5rem 0 0 1rem;">
+    {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<p style="color:var(--text2);font-size:.85rem;margin-bottom:1.5rem;">
+  Источник данных: <code>{{ folder }}</code>
+</p>
+
+<!-- ===== 1. СВОДКА ===== -->
+<div class="card" style="margin-bottom:2rem;">
+  <div class="card-header" style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;">
+    <span style="font-size:1.1rem;font-weight:600;">📊 Сводка по товарам</span>
+    <span style="font-size:.8rem;color:var(--text2);">Доро Лайн движ.xlsx &nbsp;|&nbsp; период 01.02.2026–04.03.2026</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Номенклатура</th>
+          <th style="text-align:center;">Ед.</th>
+          <th style="text-align:center;">Нач. остаток</th>
+          <th style="text-align:center;">Приход</th>
+          <th style="text-align:center;">Расход</th>
+          <th style="text-align:center;">Кон. остаток</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in summary %}
+        <tr>
+          <td><strong>{{ r.product }}</strong></td>
+          <td style="text-align:center;">{{ r.unit }}</td>
+          <td style="text-align:center;">{{ r.opening }}</td>
+          <td style="text-align:center;color:var(--success, #16a34a);font-weight:600;">
+            {% if r.incoming %}+{{ r.incoming }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;color:var(--danger, #dc2626);font-weight:600;">
+            {% if r.outgoing %}-{{ r.outgoing }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;font-weight:700;">{{ r.closing }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:30px;">Нет данных</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 2. АНАЛИЗ ИП АРАПОВА ===== -->
+<div class="card" style="margin-bottom:2rem;">
+  <div class="card-header" style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;">
+    <span style="font-size:1.1rem;font-weight:600;">🏷️ Анализ номенклатуры — ИП Арапова</span>
+    <span style="font-size:.8rem;color:var(--text2);">Анализ номен-ры по фирме ИП Арапова за февраль.xls</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Номенклатура</th>
+          <th style="text-align:center;">Срок годности</th>
+          <th style="text-align:center;">Ед.</th>
+          <th style="text-align:center;">Нач. остаток</th>
+          <th style="text-align:center;">Приход</th>
+          <th style="text-align:center;">Расход</th>
+          <th style="text-align:center;">Кон. остаток</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in analysis_xls %}
+        <tr>
+          <td><strong>{{ r.product }}</strong></td>
+          <td style="text-align:center;">
+            {% if r.expiry_date %}
+              {% if r.expiry_date < today %}
+                <span style="color:#dc2626;font-weight:600;">{{ r.expiry_date|date:"d.m.Y" }} ❌</span>
+              {% else %}
+                {{ r.expiry_date|date:"d.m.Y" }}
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;">{{ r.unit }}</td>
+          <td style="text-align:center;">{{ r.opening }}</td>
+          <td style="text-align:center;color:var(--success, #16a34a);font-weight:600;">
+            {% if r.incoming %}+{{ r.incoming }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;color:var(--danger, #dc2626);font-weight:600;">
+            {% if r.outgoing %}-{{ r.outgoing }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;font-weight:700;">{{ r.closing }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;color:var(--text2);padding:30px;">Нет данных</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 3. ДЕТАЛЬНЫЕ ДВИЖЕНИЯ ===== -->
+<div class="card" style="margin-bottom:2rem;">
+  <div class="card-header" style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);">
+    <span style="font-size:1.1rem;font-weight:600;">🔍 Детальные движения по товарам</span>
+    <span style="font-size:.8rem;color:var(--text2);">&nbsp;Доро Лайн движ детали.xlsx</span>
+  </div>
+  {% for product_name, txns in details_by_product.items %}
+  <div style="padding:.75rem 1.25rem .25rem;border-bottom:1px solid var(--border);">
+    <strong>{{ product_name }}</strong>
+    <span style="font-size:.8rem;color:var(--text2);">({{ txns|length }} транзакций)</span>
+  </div>
+  <div class="table-wrap" style="margin-bottom:0;">
+    <table style="font-size:.82rem;">
+      <thead>
+        <tr>
+          <th style="width:120px;">Дата</th>
+          <th>Документ</th>
+          <th>Контрагент</th>
+          <th style="text-align:center;">До</th>
+          <th style="text-align:center;">Приход</th>
+          <th style="text-align:center;">Расход</th>
+          <th style="text-align:center;">После</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in txns %}
+        <tr>
+          <td>{{ t.date|date:"d.m.Y"|default:"—" }}</td>
+          <td style="font-size:.75rem;max-width:250px;word-break:break-word;">{{ t.doc }}</td>
+          <td>{{ t.partner }}</td>
+          <td style="text-align:center;">{{ t.qty_before }}</td>
+          <td style="text-align:center;color:var(--success, #16a34a);font-weight:600;">
+            {% if t.qty_in %}+{{ t.qty_in }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;color:var(--danger, #dc2626);font-weight:600;">
+            {% if t.qty_out %}-{{ t.qty_out }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;font-weight:700;">{{ t.qty_after }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% empty %}
+  <p style="padding:1rem;color:var(--text2);">Нет данных</p>
+  {% endfor %}
+</div>
+
+<!-- ===== 4. ДВИЖЕНИЕ ИП АРАПОВА ===== -->
+<div class="card" style="margin-bottom:2rem;">
+  <div class="card-header" style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);">
+    <span style="font-size:1.1rem;font-weight:600;">📋 Реализации — ИП Арапова</span>
+    <span style="font-size:.8rem;color:var(--text2);">&nbsp;Движение номен-ры по фирме ИП Арапова за февраль.xls</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:120px;">Дата</th>
+          <th>Документ</th>
+          <th>Контрагент</th>
+          <th>Номенклатура</th>
+          <th style="text-align:center;">Приход</th>
+          <th style="text-align:center;">Расход</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in movements_xls %}
+        <tr>
+          <td>{{ r.date|date:"d.m.Y"|default:"—" }}</td>
+          <td style="font-size:.75rem;max-width:220px;word-break:break-word;">{{ r.doc }}</td>
+          <td>{{ r.partner }}</td>
+          <td>{{ r.product }}</td>
+          <td style="text-align:center;color:var(--success, #16a34a);font-weight:600;">
+            {% if r.incoming %}+{{ r.incoming }}{% else %}—{% endif %}
+          </td>
+          <td style="text-align:center;color:var(--danger, #dc2626);font-weight:600;">
+            {% if r.outgoing %}-{{ r.outgoing }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:30px;">Нет данных</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

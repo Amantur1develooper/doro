@@ -1,0 +1,63 @@
+{% extends 'base/base.html' %}
+{% block title %}Добавить врача{% endblock %}
+{% block page_title %}Добавить врача{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'doctors_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px;">
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:24px;">👨‍⚕️ Новый врач</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label>ФИО *</label>
+          <input type="text" name="full_name" required placeholder="Иванов Иван Иванович">
+        </div>
+        <div class="form-group">
+          <label>Специализация *</label>
+          <input type="text" name="specialty" required placeholder="Терапевт, кардиолог...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Медучреждение</label>
+        <input type="text" name="institution" placeholder="Городская больница №1">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Телефон</label>
+          <input type="text" name="phone" placeholder="+996 XXX XXXXXX">
+        </div>
+        <div class="form-group">
+          <label>Регион</label>
+          <select name="region">
+            <option value="">— Выберите регион —</option>
+            {% for r in regions %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Адрес</label>
+        <input type="text" name="address" placeholder="Город, улица, дом">
+      </div>
+      <div class="form-group">
+        <label>Представитель</label>
+        <select name="representative">
+          <option value="">— Выберите представителя —</option>
+          {% for r in reps %}<option value="{{ r.pk }}">{{ r.get_full_name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Заметки</label>
+        <textarea name="notes" placeholder="Дополнительная информация..."></textarea>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+        <a href="{% url 'doctors_list' %}" class="btn btn-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,383 @@
+{% extends 'base/base.html' %}
+{% block title %}Новый визит{% endblock %}
+{% block page_title %}Новый визит{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rec-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    background: #fef2f2;
+    border: 1.5px solid #fca5a5;
+    margin-bottom: 1.5rem;
+    font-size: .9rem;
+  }
+  .rec-banner.ready {
+    background: #f0fdf4;
+    border-color: #86efac;
+  }
+  .rec-banner.denied {
+    background: #fffbeb;
+    border-color: #fcd34d;
+  }
+  .rec-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #ef4444;
+    flex-shrink: 0;
+    animation: pulse-red 1.2s infinite;
+  }
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .5; transform: scale(.8); }
+  }
+  .rec-dot.ready   { background: #22c55e; animation: none; }
+  .rec-dot.denied  { background: #f59e0b; animation: none; }
+  .rec-timer { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 52px; }
+  .rec-controls { display: flex; gap: 8px; margin-left: auto; }
+  .rec-btn {
+    border: none; border-radius: 6px; padding: 5px 14px;
+    cursor: pointer; font-size: .8rem; font-weight: 600;
+  }
+  .rec-btn.pause  { background: #fef9c3; color: #92400e; }
+  .rec-btn.stop   { background: #fee2e2; color: #991b1b; }
+  .rec-btn.restart{ background: #e0f2fe; color: #075985; }
+  #audioPreview { margin-top: .5rem; display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+  <a href="{% url 'visits_list' %}" class="btn-back">← Назад</a>
+  <h1>📅 Зафиксировать визит</h1>
+</div>
+
+<!-- ======= RECORDING BANNER ======= -->
+<div class="rec-banner" id="recBanner">
+  <div class="rec-dot" id="recDot"></div>
+  <div>
+    <strong id="recStatus">Запрос доступа к микрофону…</strong>
+    <div style="font-size:.78rem;color:#666;" id="recHint">Разрешите доступ к микрофону — запись начнётся автоматически</div>
+  </div>
+  <span class="rec-timer" id="recTimer">0:00</span>
+  <div class="rec-controls" id="recControls" style="display:none!important;">
+    <button type="button" class="rec-btn pause" id="btnPause" onclick="togglePause()">⏸ Пауза</button>
+    <button type="button" class="rec-btn stop"  id="btnStop"  onclick="stopRecording()">⏹ Стоп</button>
+  </div>
+</div>
+
+<!-- Audio preview (shown after manual stop) -->
+<div id="audioPreview">
+  <audio id="audioPlayer" controls style="width:100%;border-radius:8px;"></audio>
+  <div style="font-size:.75rem;color:#64748b;margin-top:4px;">
+    🎙️ Запись будет прикреплена к визиту автоматически
+    <button type="button" onclick="restartRecording()"
+      style="margin-left:10px;background:none;border:none;color:var(--primary,#1a56db);
+             cursor:pointer;font-size:.78rem;text-decoration:underline;">
+      Записать заново
+    </button>
+  </div>
+</div>
+
+<!-- ======= VISIT FORM ======= -->
+<div class="card" style="max-width:700px;margin-top:1rem;">
+  <div style="padding:1.5rem;">
+
+    {% if messages %}
+      {% for msg in messages %}
+      <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;
+        background:{% if msg.tags == 'error' %}#fee2e2{% else %}#dcfce7{% endif %};">
+        {{ msg }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="visitForm" onsubmit="return onFormSubmit(event)">
+      {% csrf_token %}
+
+      <!-- Hidden audio input — filled by JS -->
+      <input type="file" name="audios" id="audioFileInput" style="display:none;" accept="audio/*">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+        {% if user.role != 'med_rep' %}
+        <div>
+          <label class="form-label">Представитель <span style="color:red">*</span></label>
+          <select name="employee" class="form-control" required>
+            <option value="">Выберите...</option>
+            {% for emp in employees %}
+            <option value="{{ emp.pk }}" {% if emp == user %}selected{% endif %}>
+              {{ emp.get_full_name|default:emp.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div>
+          <label class="form-label">Тип визита</label>
+          <select name="visit_type" class="form-control" id="visitType" onchange="toggleTarget()">
+            <option value="doctor">Врач</option>
+            <option value="pharmacy">Аптека</option>
+          </select>
+        </div>
+
+        <div id="doctorBlock">
+          <label class="form-label">Врач</label>
+          <select name="doctor" class="form-control">
+            <option value="">Выберите врача...</option>
+            {% for d in doctors %}
+            <option value="{{ d.pk }}">{{ d.full_name }} — {{ d.specialty }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="pharmacyBlock" style="display:none;">
+          <label class="form-label">Аптека</label>
+          <select name="pharmacy" class="form-control">
+            <option value="">Выберите аптеку...</option>
+            {% for ph in pharmacies %}
+            <option value="{{ ph.pk }}">{{ ph.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">Плановая дата <span style="color:red">*</span></label>
+          <input type="datetime-local" name="planned_date" class="form-control" required
+            value="{% now 'Y-m-d' %}T09:00">
+        </div>
+
+        <div>
+          <label class="form-label">Статус</label>
+          <select name="status" class="form-control">
+            <option value="planned">Запланирован</option>
+            <option value="done">Выполнен</option>
+            <option value="cancelled">Отменён</option>
+            <option value="postponed">Перенесён</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label class="form-label">Комментарий</label>
+        <textarea name="comment" class="form-control" rows="2"
+          placeholder="Цель визита..."></textarea>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label class="form-label">Результат</label>
+        <textarea name="result" class="form-control" rows="2"
+          placeholder="Итог встречи..."></textarea>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label class="form-label">Фото (необязательно)</label>
+        <input type="file" name="photos" class="form-control" accept="image/*" multiple>
+      </div>
+
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          💾 Сохранить визит
+        </button>
+        <a href="{% url 'visits_list' %}" class="btn"
+          style="background:var(--bg2,#f1f5f9);">Отмена</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let mediaRecorder = null;
+let audioChunks   = [];
+let audioBlob     = null;
+let timerInterval = null;
+let elapsedSec    = 0;
+let isPaused      = false;
+let stream        = null;
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const banner    = document.getElementById('recBanner');
+const dot       = document.getElementById('recDot');
+const statusEl  = document.getElementById('recStatus');
+const hintEl    = document.getElementById('recHint');
+const timerEl   = document.getElementById('recTimer');
+const controls  = document.getElementById('recControls');
+const preview   = document.getElementById('audioPreview');
+const player    = document.getElementById('audioPlayer');
+
+// ─── Init: request mic on page load ──────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setDenied('Браузер не поддерживает запись аудио');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then(startRecording)
+    .catch(err => {
+      if (err.name === 'NotAllowedError') {
+        setDenied('Доступ к микрофону запрещён. Запись не будет вестись.');
+      } else {
+        setDenied('Ошибка микрофона: ' + err.message);
+      }
+    });
+});
+
+function startRecording(audioStream) {
+  stream        = audioStream;
+  audioChunks   = [];
+  audioBlob     = null;
+  elapsedSec    = 0;
+  isPaused      = false;
+
+  // Choose best supported MIME
+  const mimeType = ['audio/webm;codecs=opus','audio/webm','audio/ogg','audio/mp4','']
+    .find(m => m === '' || MediaRecorder.isTypeSupported(m));
+
+  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+
+  mediaRecorder.ondataavailable = e => {
+    if (e.data && e.data.size > 0) audioChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    const ext  = (mediaRecorder.mimeType || 'audio/webm').split('/')[1].split(';')[0];
+    audioBlob  = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    player.src = URL.createObjectURL(audioBlob);
+    preview.style.display = '';
+    stopTimer();
+    setReady('Запись завершена (' + fmtTime(elapsedSec) + ')', 'Аудио будет прикреплено к визиту');
+    controls.style.cssText = 'display:none!important;';
+  };
+
+  mediaRecorder.start(1000); // collect in 1s chunks
+  startTimer();
+
+  statusEl.textContent = '🔴 Идёт запись встречи…';
+  hintEl.textContent   = 'Аудио автоматически сохранится при отправке формы';
+  dot.className        = 'rec-dot';            // red pulsing
+  banner.className     = 'rec-banner';
+  controls.style.cssText = '';                 // show controls
+}
+
+// ─── Pause / resume ──────────────────────────────────────────────────────────
+function togglePause() {
+  if (!mediaRecorder) return;
+  if (!isPaused) {
+    mediaRecorder.pause();
+    isPaused = true;
+    stopTimer();
+    document.getElementById('btnPause').textContent = '▶ Продолжить';
+    statusEl.textContent = '⏸ Запись на паузе';
+  } else {
+    mediaRecorder.resume();
+    isPaused = false;
+    startTimer();
+    document.getElementById('btnPause').textContent = '⏸ Пауза';
+    statusEl.textContent = '🔴 Идёт запись встречи…';
+  }
+}
+
+// ─── Manual stop (shows preview) ─────────────────────────────────────────────
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    stream.getTracks().forEach(t => t.stop());
+  }
+}
+
+// ─── Restart ─────────────────────────────────────────────────────────────────
+function restartRecording() {
+  preview.style.display = 'none';
+  player.src = '';
+  audioBlob  = null;
+  document.getElementById('audioFileInput').value = '';
+  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then(startRecording)
+    .catch(err => setDenied('Ошибка: ' + err.message));
+}
+
+// ─── On form submit: stop recording then submit ───────────────────────────────
+function onFormSubmit(e) {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    e.preventDefault();
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = '⏳ Сохраняю запись…';
+
+    mediaRecorder.onstop = () => {
+      const ext = (mediaRecorder.mimeType || 'audio/webm').split('/')[1].split(';')[0];
+      audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      attachAudioAndSubmit(ext);
+    };
+    mediaRecorder.stop();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stopTimer();
+  } else if (audioBlob) {
+    // Already stopped manually — attach existing blob
+    e.preventDefault();
+    const ext = (mediaRecorder?.mimeType || 'audio/webm').split('/')[1].split(';')[0];
+    attachAudioAndSubmit(ext);
+  }
+  // If no recording at all — submit normally
+  return true;
+}
+
+function attachAudioAndSubmit(ext) {
+  const ts   = new Date().toISOString().slice(0,19).replace(/[-:T]/g, '');
+  const file = new File([audioBlob], `visit_audio_${ts}.${ext || 'webm'}`,
+                        { type: audioBlob.type });
+
+  // Inject the file into the hidden input via DataTransfer
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  document.getElementById('audioFileInput').files = dt.files;
+
+  document.getElementById('visitForm').submit();
+}
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
+function startTimer() {
+  timerInterval = setInterval(() => {
+    elapsedSec++;
+    timerEl.textContent = fmtTime(elapsedSec);
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+function fmtTime(s) {
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+// ─── Banner helpers ───────────────────────────────────────────────────────────
+function setReady(msg, hint) {
+  statusEl.textContent = msg;
+  hintEl.textContent   = hint || '';
+  dot.className        = 'rec-dot ready';
+  banner.className     = 'rec-banner ready';
+}
+function setDenied(msg) {
+  statusEl.textContent = msg;
+  hintEl.textContent   = 'Визит будет сохранён без аудио';
+  dot.className        = 'rec-dot denied';
+  banner.className     = 'rec-banner denied';
+  controls.style.cssText = 'display:none!important;';
+}
+
+// ─── Visit type toggle ────────────────────────────────────────────────────────
+function toggleTarget() {
+  const t = document.getElementById('visitType').value;
+  document.getElementById('doctorBlock').style.display   = (t === 'doctor')   ? '' : 'none';
+  document.getElementById('pharmacyBlock').style.display = (t === 'pharmacy') ? '' : 'none';
+}
+</script>
+{% endblock %}

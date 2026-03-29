@@ -1,0 +1,39 @@
+{% extends 'base/base.html' %}
+{% block title %}Склады{% endblock %}
+{% block page_title %}Склады{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🏭 Склады</h1>
+  <a href="{% url 'stock_in' %}" class="btn btn-primary">+ Принять товар</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">
+  {% for w in warehouses %}
+  <a href="{% url 'warehouse_detail' w.pk %}" style="text-decoration:none;">
+    <div class="stat-card" style="flex-direction:column;align-items:flex-start;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:12px;width:100%;margin-bottom:12px;">
+        <div class="stat-icon blue" style="font-size:24px;">🏭</div>
+        <div>
+          <div style="font-weight:700;font-size:16px;">{{ w.name }}</div>
+          <div style="font-size:12px;color:var(--text2);">{{ w.address|default:"Адрес не указан" }}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);">Менеджер: {{ w.manager.get_full_name|default:"—" }}</div>
+      <div class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%;justify-content:center;">Открыть склад →</div>
+    </div>
+  </a>
+  {% empty %}
+  <div class="card">
+    <p class="text-muted" style="text-align:center;padding:30px;">Склады не добавлены</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div style="margin-top:24px;display:flex;gap:12px;">
+  <a href="{% url 'products_list' %}" class="btn btn-secondary">💉 Все товары</a>
+  <a href="{% url 'expiring_report' %}" class="btn btn-secondary">⚠️ Сроки годности</a>
+  <a href="{% url 'movements_list' %}" class="btn btn-secondary">🔄 Движение товаров</a>
+  <a href="{% url 'stock_writeoff' %}" class="btn btn-secondary">📤 Списание</a>
+</div>
+{% endblock %}

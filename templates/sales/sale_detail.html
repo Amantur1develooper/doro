@@ -1,0 +1,148 @@
+{% extends 'base/base.html' %}
+{% block title %}Продажа #{{ sale.pk }}{% endblock %}
+{% block page_title %}Продажа #{{ sale.pk }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+  <a href="{% url 'sales_list' %}" class="btn-back">← Назад</a>
+  <h1>💰 Продажа #{{ sale.pk }}</h1>
+</div>
+
+{% if messages %}
+  {% for msg in messages %}
+  <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;
+    background:{% if msg.tags == 'error' %}#fee2e2{% else %}#dcfce7{% endif %};">
+    {{ msg }}
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div style="display:grid;grid-template-columns:320px 1fr;gap:1.5rem;align-items:start;">
+
+  <!-- Left: sale info -->
+  <div>
+    <div class="card" style="padding:1.25rem;">
+      <h2 style="font-size:.95rem;font-weight:700;margin-bottom:1rem;">📋 Детали продажи</h2>
+
+      <div class="detail-item"><div class="detail-label">Дата</div>
+        <div class="detail-value">{{ sale.date|date:"d.m.Y" }}</div></div>
+
+      <div class="detail-item"><div class="detail-label">Аптека</div>
+        <div class="detail-value">
+          {% if sale.pharmacy %}
+            <a href="{% url 'pharmacy_detail' sale.pharmacy.pk %}" style="color:var(--accent);">
+              {{ sale.pharmacy.name }}
+            </a>
+          {% else %}—{% endif %}
+        </div>
+      </div>
+
+      <div class="detail-item"><div class="detail-label">Представитель</div>
+        <div class="detail-value">{{ sale.employee.get_full_name|default:"—" }}</div></div>
+
+      <div class="detail-item"><div class="detail-label">Склад</div>
+        <div class="detail-value">{{ sale.warehouse.name|default:"—" }}</div></div>
+
+      <div class="detail-item"><div class="detail-label">Статус</div>
+        <div>
+          {% if sale.status == 'pending' %}
+            <span class="badge badge-yellow">⏳ В обработке</span>
+          {% elif sale.status == 'confirmed' %}
+            <span class="badge badge-green">✅ Подтверждена</span>
+          {% elif sale.status == 'shipped' %}
+            <span class="badge badge-blue">🚚 Отгружена</span>
+          {% else %}
+            <span class="badge badge-red">❌ Отменена</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="detail-item"><div class="detail-label">Сумма продаж</div>
+        <div class="detail-value" style="font-weight:700;font-size:1.05rem;">
+          {{ sale.total_amount|floatformat:0 }} сом
+        </div>
+      </div>
+
+      <div class="detail-item"><div class="detail-label">Себестоимость</div>
+        <div class="detail-value">{{ sale.total_cost|floatformat:0 }} сом</div></div>
+
+      <div class="detail-item"><div class="detail-label">Маржа</div>
+        <div class="detail-value" style="color:#16a34a;font-weight:600;">
+          {{ sale.margin|floatformat:0 }} сом
+          {% if sale.total_amount %}({{ sale.margin_percent }}%){% endif %}
+        </div>
+      </div>
+
+      {% if sale.notes %}
+      <div class="detail-item"><div class="detail-label">Заметки</div>
+        <div class="detail-value">{{ sale.notes }}</div></div>
+      {% endif %}
+
+      {% if sale.status == 'pending' %}
+      <form method="post" action="{% url 'sale_confirm' sale.pk %}" style="margin-top:1.25rem;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary" style="width:100%;"
+          onclick="return confirm('Подтвердить продажу? Товар будет списан со склада.')">
+          ✅ Подтвердить продажу
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right: items -->
+  <div class="card">
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#e2e8f0);font-weight:600;">
+      📦 Позиции ({{ items|length }})
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Препарат</th>
+            <th>Партия</th>
+            <th>Срок годности</th>
+            <th style="text-align:center;">Кол-во</th>
+            <th style="text-align:right;">Цена</th>
+            <th style="text-align:right;">Сумма</th>
+            <th style="text-align:right;">Маржа</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td><strong>{{ item.batch.product.name }}</strong></td>
+            <td style="font-size:.82rem;">{{ item.batch.batch_number }}</td>
+            <td style="font-size:.82rem;">
+              {% if item.batch.is_expired %}
+                <span style="color:#dc2626;">{{ item.batch.expiry_date|date:"d.m.Y" }} ❌</span>
+              {% elif item.batch.is_expiring %}
+                <span style="color:#d97706;">{{ item.batch.expiry_date|date:"d.m.Y" }} ⚠️</span>
+              {% else %}
+                {{ item.batch.expiry_date|date:"d.m.Y" }}
+              {% endif %}
+            </td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td style="text-align:right;">{{ item.sale_price|floatformat:2 }}</td>
+            <td style="text-align:right;font-weight:600;">{{ item.amount|floatformat:0 }}</td>
+            <td style="text-align:right;color:#16a34a;font-weight:600;">{{ item.margin|floatformat:0 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;color:var(--text2);padding:30px;">Нет позиций</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if items %}
+        <tfoot style="background:var(--bg2,#f8fafc);font-weight:700;">
+          <tr>
+            <td colspan="5" style="text-align:right;padding:.6rem .75rem;">Итого:</td>
+            <td style="text-align:right;padding:.6rem .75rem;">{{ sale.total_amount|floatformat:0 }}</td>
+            <td style="text-align:right;padding:.6rem .75rem;color:#16a34a;">{{ sale.margin|floatformat:0 }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Редактировать' if warehouse else 'Добавить склад' }}{% endblock %}
+{% block page_title %}{{ 'Редактировать склад' if warehouse else 'Новый склад' }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-6">
+  <div class="card">
+    <div class="card-header d-flex align-items-center gap-2">
+      <a href="{{ url_for('warehouses') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+      <span>{{ 'Редактировать склад' if warehouse else 'Новый склад' }}</span>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <div class="row g-3">
+          <div class="col-12"><label class="form-label">Название <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required value="{{ warehouse.name if warehouse else '' }}"></div>
+          <div class="col-12"><label class="form-label">Адрес</label><input type="text" name="address" class="form-control" value="{{ warehouse.address if warehouse else '' }}"></div>
+          <div class="col-md-6"><label class="form-label">Регион</label><select name="region_id" class="form-select"><option value="">Не выбран</option>{% for r in regions %}<option value="{{ r.id }}" {% if warehouse and warehouse.region_id==r.id %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-6"><label class="form-label">Менеджер склада</label><select name="manager_id" class="form-select"><option value="">Не назначен</option>{% for m in managers %}<option value="{{ m.id }}" {% if warehouse and warehouse.manager_id==m.id %}selected{% endif %}>{{ m.full_name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ 'Сохранить' if warehouse else 'Добавить' }}</button>
+          <a href="{{ url_for('warehouses') }}" class="btn btn-outline-secondary">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div></div>
+{% endblock %}

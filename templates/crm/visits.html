@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Визиты{% endblock %}
+{% block page_title %}Визиты сотрудников{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Визиты <span class="badge bg-secondary">{{ visits|length }}</span></h5>
+  <a href="{{ url_for('visit_add') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Добавить визит</a>
+</div>
+<div class="filters-bar">
+  <form method="GET" class="row g-2">
+    <div class="col-md-3"><select name="status" class="form-select form-select-sm"><option value="">Все статусы</option><option value="planned" {% if status=='planned' %}selected{% endif %}>Запланирован</option><option value="completed" {% if status=='completed' %}selected{% endif %}>Выполнен</option><option value="cancelled" {% if status=='cancelled' %}selected{% endif %}>Отменен</option><option value="postponed" {% if status=='postponed' %}selected{% endif %}>Перенесен</option></select></div>
+    {% if session.get('role') != 'med_rep' %}
+    <div class="col-md-3"><select name="user_id" class="form-select form-select-sm"><option value="">Все представители</option>{% for rep in reps %}<option value="{{ rep.id }}" {% if user_id==rep.id|string %}selected{% endif %}>{{ rep.full_name }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div class="col-md-2"><input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}" placeholder="С даты"></div>
+    <div class="col-md-2"><input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}" placeholder="По дату"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Найти</button></div>
+  </form>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Дата план</th><th>Дата факт</th><th>Сотрудник</th><th>Тип</th><th>Клиент</th><th>Статус</th><th>GPS</th><th>Результат</th><th></th></tr></thead>
+        <tbody>
+          {% for v in visits %}<tr>
+            <td><small>{{ v.planned_date or '—' }}</small></td>
+            <td><small>{{ v.actual_date or '—' }}</small></td>
+            <td><small class="fw-semibold">{{ v.rep_name }}</small></td>
+            <td>{% if v.visit_type=='doctor' %}<span class="badge bg-info">Врач</span>{% else %}<span class="badge bg-success">Аптека</span>{% endif %}</td>
+            <td><small>{{ v.client_name or '—' }}</small></td>
+            <td><span class="status-badge status-{{ v.status }}">{% if v.status=='planned' %}Запланирован{% elif v.status=='completed' %}Выполнен{% elif v.status=='cancelled' %}Отменен{% else %}Перенесен{% endif %}</span></td>
+            <td>{% if v.gps_lat %}<span class="badge bg-success-subtle text-success"><i class="bi bi-geo-alt"></i></span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td><small class="text-muted">{{ (v.result or '')[:40] }}{{ '...' if v.result and v.result|length > 40 else '' }}</small></td>
+            <td>{% if v.status=='planned' %}
+              <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeModal{{ v.id }}"><i class="bi bi-check"></i></button>
+              <div class="modal fade" id="completeModal{{ v.id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Выполнить визит</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <form method="POST" action="{{ url_for('visit_complete', vid=v.id) }}">
+                  <div class="modal-body">
+                    <div class="mb-3"><label class="form-label">Результат визита</label><textarea name="result" class="form-control" rows="2" placeholder="Что обсудили, договорились..."></textarea></div>
+                    <div class="mb-3"><label class="form-label">Комментарий</label><textarea name="comment" class="form-control" rows="2"></textarea></div>
+                  </div>
+                  <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button><button type="submit" class="btn btn-success btn-sm">✓ Выполнен</button></div>
+                </form>
+              </div></div></div>
+            {% endif %}</td>
+          </tr>{% else %}
+          <tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-geo-alt fs-2 d-block mb-2 opacity-25"></i>Визиты не найдены. <a href="{{ url_for('visit_add') }}">Добавить визит</a></td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

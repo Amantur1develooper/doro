@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход — Dorolien</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 2.5rem;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,.3);
+    }
+    .brand-logo {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: linear-gradient(135deg, #1a56db, #1248b3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 1.25rem;
+    }
+    .login-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; }
+    .login-sub { font-size: .875rem; color: #64748b; margin-top: .25rem; }
+    .form-control {
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      padding: .75rem 1rem; font-size: .875rem;
+    }
+    .form-control:focus { border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,.1); }
+    .form-label { font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: .35rem; }
+    .btn-login {
+      background: linear-gradient(135deg, #1a56db, #1248b3);
+      border: none; color: #fff; padding: .75rem;
+      border-radius: 8px; font-weight: 600; font-size: .9rem;
+      width: 100%; transition: opacity .2s;
+    }
+    .btn-login:hover { opacity: .9; color: #fff; }
+    .alert { border-radius: 8px; font-size: .875rem; }
+    .hint-box {
+      background: #f0f9ff; border: 1px solid #bae6fd;
+      border-radius: 8px; padding: .75rem 1rem;
+      font-size: .8rem; color: #0369a1; margin-top: 1rem;
+    }
+    .input-group-text { background: #f8fafc; border: 1.5px solid #e2e8f0; }
+    .password-toggle { cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand-logo">🏥</div>
+  <div class="login-title">Dorolien</div>
+  <div class="login-sub mb-4">CRM + Склад + Аналитика продаж</div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('login') }}">
+    <div class="mb-3">
+      <label class="form-label">Логин</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-person"></i></span>
+        <input type="text" name="username" class="form-control" placeholder="Введите логин"
+               value="{{ request.form.get('username','') }}" required autofocus>
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Пароль</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+        <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Введите пароль" required>
+        <span class="input-group-text password-toggle" onclick="togglePassword()">
+          <i class="bi bi-eye" id="eyeIcon"></i>
+        </span>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-login">
+      <i class="bi bi-box-arrow-in-right me-2"></i> Войти
+    </button>
+  </form>
+
+  <div class="hint-box">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>По умолчанию:</strong> логин <code>admin</code>, пароль <code>admin123</code>
+  </div>
+</div>
+
+<script>
+function togglePassword() {
+  const input = document.getElementById('passwordInput');
+  const icon = document.getElementById('eyeIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'bi bi-eye';
+  }
+}
+</script>
+</body>
+</html>

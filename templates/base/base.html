@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dorolien{% endblock %} — Dorolien CRM</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">💊</div>
+    <span>Dorolien</span>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Главная</div>
+    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <span class="icon">📊</span> Дашборд
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">CRM</div>
+    <a href="{% url 'visits_list' %}" class="nav-item {% if 'visit' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="icon">📅</span> Визиты
+    </a>
+    <a href="{% url 'doctors_list' %}" class="nav-item {% if 'doctor' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="icon">👨‍⚕️</span> Врачи
+    </a>
+    <a href="{% url 'pharmacies_list' %}" class="nav-item {% if 'pharmac' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="icon">🏥</span> Аптеки
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Склад</div>
+    <a href="{% url 'warehouses_list' %}" class="nav-item {% if request.resolver_match.url_name == 'warehouses_list' or request.resolver_match.url_name == 'warehouse_detail' %}active{% endif %}">
+      <span class="icon">🏭</span> Склады
+    </a>
+    <a href="{% url 'products_list' %}" class="nav-item {% if 'product' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="icon">💉</span> Товары
+    </a>
+    <a href="{% url 'stock_in' %}" class="nav-item {% if request.resolver_match.url_name == 'stock_in' %}active{% endif %}">
+      <span class="icon">📦</span> Приемка товара
+    </a>
+    <a href="{% url 'expiring_report' %}" class="nav-item {% if request.resolver_match.url_name == 'expiring_report' %}active{% endif %}">
+      <span class="icon">⚠️</span> Сроки годности
+    </a>
+    <a href="{% url 'movements_list' %}" class="nav-item {% if request.resolver_match.url_name == 'movements_list' %}active{% endif %}">
+      <span class="icon">🔄</span> Движение товаров
+    </a>
+    <a href="{% url 'dora_report' %}" class="nav-item {% if 'dora' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="icon">📂</span> Доро Лайн движение
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Продажи</div>
+    <a href="{% url 'sales_list' %}" class="nav-item {% if request.resolver_match.url_name == 'sales_list' %}active{% endif %}">
+      <span class="icon">💰</span> Продажи
+    </a>
+    <a href="{% url 'sale_create' %}" class="nav-item {% if request.resolver_match.url_name == 'sale_create' %}active{% endif %}">
+      <span class="icon">➕</span> Новая продажа
+    </a>
+    <a href="{% url 'debts_list' %}" class="nav-item {% if request.resolver_match.url_name == 'debts_list' %}active{% endif %}">
+      <span class="icon">📋</span> Задолженности
+    </a>
+    <a href="{% url 'sales_analytics' %}" class="nav-item {% if request.resolver_match.url_name == 'sales_analytics' %}active{% endif %}">
+      <span class="icon">📈</span> Аналитика продаж
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Отчеты</div>
+    <a href="{% url 'employee_report' %}" class="nav-item {% if request.resolver_match.url_name == 'employee_report' %}active{% endif %}">
+      <span class="icon">👥</span> По сотрудникам
+    </a>
+  </div>
+
+  {% if user.role in 'superadmin,director' %}
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Управление</div>
+    <a href="{% url 'users_list' %}" class="nav-item {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="icon">🔑</span> Пользователи
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar">{{ user.first_name.0|default:user.username.0|upper }}</div>
+      <div>
+        <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+        <div class="user-role">{{ user.get_role_display }}</div>
+      </div>
+    </div>
+    <a href="{% url 'logout' %}" class="nav-item mt-1" style="color: var(--danger)">
+      <span class="icon">🚪</span> Выйти
+    </a>
+  </div>
+</aside>
+
+<!-- MAIN WRAP -->
+<div class="main-wrap">
+  <header class="topbar">
+    <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+    <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+  </header>
+
+  <main class="page-content">
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      <div class="alert alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}warning{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% endif %}
+
+<script>
+// Simple JS utilities
+function formatCurrency(n) {
+  return new Intl.NumberFormat('ru-RU').format(n);
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,74 @@
+{% extends 'base/base.html' %}
+{% block title %}{{ warehouse.name }}{% endblock %}
+{% block page_title %}{{ warehouse.name }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'stock_in' %}" class="btn btn-primary btn-sm">+ Принять товар</a>
+  <a href="{% url 'warehouses_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
+
+{% block content %}
+{% if expiring %}
+<div class="alert alert-warning">⚠️ {{ expiring.count }} партий скоро истекают (в течение 90 дней)</div>
+{% endif %}
+{% if expired %}
+<div class="alert alert-error">🚫 {{ expired.count }} просроченных партий требуют списания!</div>
+{% endif %}
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Товар</th><th>Партия</th><th>Срок годности</th><th>Количество</th><th>Цена закупки</th><th>Статус</th></tr>
+    </thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td>
+          <a href="{% url 'product_detail' b.product.pk %}" style="color:var(--accent);font-weight:600;">{{ b.product.name }}</a>
+          <div style="font-size:11px;color:var(--text2);">{{ b.product.category.name|default:"" }}</div>
+        </td>
+        <td>{{ b.batch_number }}</td>
+        <td>
+          {% if b.is_expired %}<span style="color:var(--danger);font-weight:600;">{{ b.expiry_date }} ❌</span>
+          {% elif b.is_expiring %}<span style="color:var(--warning);font-weight:600;">{{ b.expiry_date }} ⚠️</span>
+          {% else %}{{ b.expiry_date }}{% endif %}
+        </td>
+        <td style="font-weight:600;">{{ b.quantity }} {{ b.product.unit }}</td>
+        <td>{{ b.purchase_price|floatformat:2 }} сом</td>
+        <td>
+          {% if b.is_expired %}<span class="badge badge-red">Просрочен</span>
+          {% elif b.is_expiring %}<span class="badge badge-yellow">Истекает</span>
+          {% else %}<span class="badge badge-green">В норме</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:30px;">На складе нет товаров</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card mt-3">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">🔄 Последние движения</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Дата</th><th>Тип</th><th>Товар</th><th>Кол-во</th><th>Сотрудник</th></tr></thead>
+      <tbody>
+      {% for m in movements %}
+      <tr>
+        <td>{{ m.date|date:"d.m.Y H:i" }}</td>
+        <td>
+          {% if m.movement_type == 'in' %}<span class="badge badge-green">Приход</span>
+          {% elif m.movement_type == 'out' %}<span class="badge badge-blue">Расход</span>
+          {% elif m.movement_type == 'writeoff' %}<span class="badge badge-red">Списание</span>
+          {% else %}<span class="badge badge-yellow">{{ m.get_movement_type_display }}</span>{% endif %}
+        </td>
+        <td>{{ m.batch.product.name }}</td>
+        <td>{{ m.quantity }}</td>
+        <td>{{ m.employee.get_full_name|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base/base.html' %}
+{% block title %}Списание{% endblock %}
+{% block page_title %}Списание товара{% endblock %}
+{% block topbar_actions %}<a href="{% url 'warehouses_list' %}" class="btn btn-secondary btn-sm">← Назад</a>{% endblock %}
+{% block content %}
+<div style="max-width:600px;">
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:24px;">📤 Списание товара</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label>Партия товара *</label>
+        <select name="batch" required>
+          <option value="">— Выберите партию —</option>
+          {% for b in batches %}
+          <option value="{{ b.pk }}">{{ b.product.name }} | {{ b.batch_number }} | {{ b.warehouse.name }} | {{ b.quantity }} шт | до {{ b.expiry_date }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group"><label>Количество для списания *</label><input type="number" name="quantity" required min="1" value="1"></div>
+      <div class="form-group"><label>Причина списания</label><textarea name="notes" placeholder="Просрочен, поврежден..."></textarea></div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-danger">📤 Списать</button>
+        <a href="{% url 'warehouses_list' %}" class="btn btn-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

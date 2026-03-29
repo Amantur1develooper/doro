@@ -1,0 +1,33 @@
+{% extends 'base/base.html' %}
+{% block title %}Задолженности аптек{% endblock %}
+{% block page_title %}Задолженности{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>📋 Задолженности аптек</h1>
+  <div>
+    <span style="font-size:13px;color:var(--text2);">Общий долг:</span>
+    <span style="font-size:20px;font-weight:700;color:var(--danger);margin-left:8px;">{{ total_debt|floatformat:0 }} сом</span>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Аптека</th><th>Регион</th><th>Контакт</th><th>Телефон</th><th>Задолженность</th><th></th></tr></thead>
+    <tbody>
+      {% for p in pharmacies %}
+      <tr>
+        <td><a href="{% url 'pharmacy_detail' p.pk %}" style="color:var(--accent);font-weight:600;">{{ p.name }}</a></td>
+        <td>{{ p.region.name|default:"—" }}</td>
+        <td>{{ p.contact_person|default:"—" }}</td>
+        <td>{{ p.phone|default:"—" }}</td>
+        <td style="font-size:16px;font-weight:700;color:var(--danger);">{{ p.debt|floatformat:0 }} сом</td>
+        <td><a href="{% url 'pharmacy_detail' p.pk %}" class="btn btn-secondary btn-sm">→</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:30px;">Задолженностей нет 🎉</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

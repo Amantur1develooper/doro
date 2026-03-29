@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Склады{% endblock %}
+{% block page_title %}Управление складами{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Склады</h5>
+  <a href="{{ url_for('warehouse_add') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Добавить склад</a>
+</div>
+<div class="row g-3">
+  {% for w in warehouses %}
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div style="width:48px;height:48px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:1.25rem">🏭</div>
+          <div>
+            <div class="fw-bold">{{ w.name }}</div>
+            <small class="text-muted">{{ w.address or 'Адрес не указан' }}</small>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom"><small class="text-muted">Регион</small><small>{{ w.region_name or '—' }}</small></div>
+        <div class="d-flex justify-content-between py-1 border-bottom"><small class="text-muted">Менеджер</small><small>{{ w.manager_name or '—' }}</small></div>
+        <div class="d-flex justify-content-between py-1 border-bottom"><small class="text-muted">Препаратов</small><small class="fw-semibold">{{ w.product_count }}</small></div>
+        <div class="d-flex justify-content-between py-1"><small class="text-muted">Стоимость</small><small class="fw-semibold">{{ '%.0f'|format(w.total_value or 0) }} сом</small></div>
+      </div>
+      <div class="card-footer">
+        <a href="{{ url_for('stock', wh_id=w.id) }}" class="btn btn-sm btn-outline-primary w-100">Просмотр остатков</a>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12 text-center py-5 text-muted"><i class="bi bi-building fs-1 d-block mb-2 opacity-25"></i>Склады не добавлены</div>
+  {% endfor %}
+</div>
+{% endblock %}

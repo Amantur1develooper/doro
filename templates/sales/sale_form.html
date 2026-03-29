@@ -1,0 +1,248 @@
+{% extends 'base/base.html' %}
+{% block title %}Новая продажа{% endblock %}
+{% block page_title %}Новая продажа{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+  <a href="{% url 'sales_list' %}" class="btn-back">← Назад</a>
+  <h1>💰 Оформление продажи</h1>
+</div>
+
+<div class="card">
+  <div style="padding:1.5rem;">
+
+    {% if messages %}
+      {% for msg in messages %}
+      <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;
+        background:{% if msg.tags == 'error' %}#fee2e2{% else %}#dcfce7{% endif %};">
+        {{ msg }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" id="saleForm" onsubmit="return buildItemsJson()">
+      {% csrf_token %}
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
+
+        <div>
+          <label class="form-label">Аптека <span style="color:red">*</span></label>
+          <select name="pharmacy" class="form-control" required>
+            <option value="">Выберите аптеку...</option>
+            {% for ph in pharmacies %}
+            <option value="{{ ph.pk }}">{{ ph.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">Склад <span style="color:red">*</span></label>
+          <select name="warehouse" class="form-control" required>
+            <option value="">Выберите склад...</option>
+            {% for w in warehouses %}
+            <option value="{{ w.pk }}">{{ w.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label">Дата продажи</label>
+          <input type="date" name="date" class="form-control" value="{% now 'Y-m-d' %}">
+        </div>
+
+        {% if user.role != 'med_rep' %}
+        <div>
+          <label class="form-label">Представитель</label>
+          <select name="employee" class="form-control">
+            <option value="">— Текущий пользователь —</option>
+            {% for emp in employees %}
+            <option value="{{ emp.pk }}" {% if emp == user %}selected{% endif %}>
+              {{ emp.get_full_name|default:emp.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div>
+          <label class="form-label">Заметки</label>
+          <input type="text" name="notes" class="form-control" placeholder="Номер накладной...">
+        </div>
+
+      </div>
+
+      <!-- Items table -->
+      <h2 style="font-size:1rem;font-weight:600;margin-bottom:.75rem;">Товарные позиции</h2>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;" id="itemsTable">
+          <thead>
+            <tr style="background:var(--bg2,#f8fafc);font-size:.82rem;font-weight:600;">
+              <th style="padding:.6rem .75rem;text-align:left;border-bottom:2px solid var(--border,#e2e8f0);">Партия / Товар</th>
+              <th style="padding:.6rem .75rem;text-align:center;border-bottom:2px solid var(--border,#e2e8f0);width:80px;">Остаток</th>
+              <th style="padding:.6rem .75rem;text-align:center;border-bottom:2px solid var(--border,#e2e8f0);width:120px;">Цена продажи</th>
+              <th style="padding:.6rem .75rem;text-align:center;border-bottom:2px solid var(--border,#e2e8f0);width:100px;">Кол-во</th>
+              <th style="padding:.6rem .75rem;text-align:right;border-bottom:2px solid var(--border,#e2e8f0);width:120px;">Сумма</th>
+              <th style="padding:.6rem .75rem;border-bottom:2px solid var(--border,#e2e8f0);width:40px;"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody">
+            <tr class="item-row">
+              <td style="padding:.5rem .75rem;">
+                <select class="form-control batch-sel" style="font-size:.85rem;" required>
+                  <option value="">Выберите товар...</option>
+                  {% for b in batches %}
+                  <option value="{{ b.pk }}"
+                    data-qty="{{ b.quantity }}"
+                    data-price="{{ b.product.sale_price }}"
+                    data-cost="{{ b.purchase_price }}">
+                    {{ b.product.name }} (партия {{ b.batch_number }}) — {{ b.quantity }} шт
+                  </option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td style="padding:.5rem .75rem;text-align:center;">
+                <span class="stock-left" style="font-size:.85rem;color:var(--text2,#64748b);">—</span>
+              </td>
+              <td style="padding:.5rem .75rem;">
+                <input type="number" class="form-control price-input" step="0.01" min="0" placeholder="0.00" style="font-size:.85rem;">
+              </td>
+              <td style="padding:.5rem .75rem;">
+                <input type="number" class="form-control qty-input" step="1" min="1" placeholder="0" style="font-size:.85rem;">
+              </td>
+              <td style="padding:.5rem .75rem;text-align:right;font-weight:600;">
+                <span class="row-amount">—</span>
+              </td>
+              <td style="padding:.5rem .25rem;text-align:center;">
+                <button type="button" class="remove-row"
+                  style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.1rem;">✕</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.75rem;">
+        <button type="button" onclick="addRow()"
+          style="background:none;border:1px dashed var(--primary,#1a56db);color:var(--primary,#1a56db);
+                 padding:.4rem 1rem;border-radius:6px;cursor:pointer;font-size:.85rem;">
+          + Добавить строку
+        </button>
+        <div style="text-align:right;font-size:.9rem;">
+          Итого: <strong id="grandTotal">0</strong> сом
+        </div>
+      </div>
+
+      <!-- Hidden field that stores items as JSON for the view -->
+      <input type="hidden" name="items_json" id="itemsJson">
+
+      <div id="formError" style="display:none;padding:.75rem 1rem;border-radius:6px;
+        background:#fee2e2;color:#991b1b;margin-top:1rem;"></div>
+
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+        <button type="submit" class="btn btn-primary">Оформить продажу</button>
+        <a href="{% url 'sales_list' %}" class="btn" style="background:var(--bg2,#f1f5f9);">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Build the item row HTML (reused when adding rows)
+function rowHTML() {
+  const opts = document.querySelector('.batch-sel').innerHTML;
+  return `<tr class="item-row">
+    <td style="padding:.5rem .75rem;">
+      <select class="form-control batch-sel" style="font-size:.85rem;" required>${opts}</select>
+    </td>
+    <td style="padding:.5rem .75rem;text-align:center;">
+      <span class="stock-left" style="font-size:.85rem;color:var(--text2,#64748b);">—</span>
+    </td>
+    <td style="padding:.5rem .75rem;">
+      <input type="number" class="form-control price-input" step="0.01" min="0" placeholder="0.00" style="font-size:.85rem;">
+    </td>
+    <td style="padding:.5rem .75rem;">
+      <input type="number" class="form-control qty-input" step="1" min="1" placeholder="0" style="font-size:.85rem;">
+    </td>
+    <td style="padding:.5rem .75rem;text-align:right;font-weight:600;">
+      <span class="row-amount">—</span>
+    </td>
+    <td style="padding:.5rem .25rem;text-align:center;">
+      <button type="button" class="remove-row"
+        style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.1rem;">✕</button>
+    </td>
+  </tr>`;
+}
+
+function addRow() {
+  const tbody = document.getElementById('itemsBody');
+  const tmp = document.createElement('tbody');
+  tmp.innerHTML = rowHTML();
+  const tr = tmp.firstElementChild;
+  tbody.appendChild(tr);
+  attachListeners(tr);
+}
+
+function attachListeners(row) {
+  row.querySelector('.remove-row').addEventListener('click', () => {
+    if (document.querySelectorAll('.item-row').length > 1) { row.remove(); calcTotal(); }
+  });
+  row.querySelector('.batch-sel').addEventListener('change', function() {
+    const opt = this.selectedOptions[0];
+    if (opt && opt.dataset.price) {
+      row.querySelector('.price-input').value = opt.dataset.price;
+      row.querySelector('.stock-left').textContent = opt.dataset.qty + ' шт';
+    }
+    calcRow(row);
+  });
+  row.querySelectorAll('.price-input, .qty-input').forEach(i =>
+    i.addEventListener('input', () => calcRow(row))
+  );
+}
+
+function calcRow(row) {
+  const qty   = parseFloat(row.querySelector('.qty-input').value)   || 0;
+  const price = parseFloat(row.querySelector('.price-input').value) || 0;
+  const amount = qty * price;
+  row.querySelector('.row-amount').textContent =
+    amount > 0 ? amount.toLocaleString('ru', {maximumFractionDigits:2}) + ' сом' : '—';
+  calcTotal();
+}
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    total += (parseFloat(row.querySelector('.qty-input').value) || 0) *
+             (parseFloat(row.querySelector('.price-input').value) || 0);
+  });
+  document.getElementById('grandTotal').textContent =
+    total.toLocaleString('ru', {maximumFractionDigits:2});
+}
+
+function buildItemsJson() {
+  const items = [];
+  let valid = true;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const batchId = row.querySelector('.batch-sel').value;
+    const qty     = parseInt(row.querySelector('.qty-input').value)   || 0;
+    const price   = parseFloat(row.querySelector('.price-input').value) || 0;
+    if (!batchId || qty <= 0 || price <= 0) { valid = false; return; }
+    items.push({ batch_id: batchId, quantity: qty, price: price });
+  });
+
+  const errEl = document.getElementById('formError');
+  if (!valid || items.length === 0) {
+    errEl.style.display = '';
+    errEl.textContent = 'Заполните все строки: выберите товар, укажите количество и цену (> 0).';
+    return false;
+  }
+  errEl.style.display = 'none';
+  document.getElementById('itemsJson').value = JSON.stringify(items);
+  return true;
+}
+
+// Init first row
+document.querySelectorAll('.item-row').forEach(attachListeners);
+</script>
+{% endblock %}

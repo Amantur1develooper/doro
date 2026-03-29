@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Врачи{% endblock %}
+{% block page_title %}База врачей{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Врачи <span class="badge bg-secondary">{{ doctors|length }}</span></h5>
+  <a href="{{ url_for('doctor_add') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i> Добавить врача
+  </a>
+</div>
+
+<div class="filters-bar">
+  <form method="GET" class="row g-2">
+    <div class="col-md-5">
+      <input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск по ФИО, специализации, учреждению..." value="{{ q }}">
+    </div>
+    <div class="col-md-3">
+      <select name="region_id" class="form-select form-select-sm">
+        <option value="">Все регионы</option>
+        {% for r in regions %}
+        <option value="{{ r.id }}" {% if request.args.get('region_id')==r.id|string %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="user_id" class="form-select form-select-sm">
+        <option value="">Все представители</option>
+        {% for rep in reps %}
+        <option value="{{ rep.id }}" {% if request.args.get('user_id')==rep.id|string %}selected{% endif %}>{{ rep.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i></button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>ФИО врача</th>
+            <th>Специализация</th>
+            <th>Учреждение</th>
+            <th>Регион</th>
+            <th>Представитель</th>
+            <th>Телефон</th>
+            <th class="text-center">Визиты</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in doctors %}
+          <tr>
+            <td>
+              <a href="{{ url_for('doctor_detail', did=d.id) }}" class="fw-semibold text-decoration-none">
+                {{ d.full_name }}
+              </a>
+            </td>
+            <td><span class="badge bg-light text-dark">{{ d.specialization or '—' }}</span></td>
+            <td>{{ d.institution or '—' }}</td>
+            <td>{{ d.region_name or '—' }}</td>
+            <td>{{ d.rep_name or '<span class="text-muted">Не назначен</span>'|safe }}</td>
+            <td>{{ d.phone or '—' }}</td>
+            <td class="text-center"><span class="badge bg-info">{{ d.visit_count }}</span></td>
+            <td>
+              <div class="d-flex gap-1 justify-content-end">
+                <a href="{{ url_for('doctor_detail', did=d.id) }}" class="btn btn-sm btn-outline-secondary" title="Просмотр">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('doctor_edit', did=d.id) }}" class="btn btn-sm btn-outline-primary" title="Редактировать">
+                  <i class="bi bi-pencil"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">
+            <i class="bi bi-person-badge fs-2 d-block mb-2 opacity-25"></i>
+            Врачи не найдены. <a href="{{ url_for('doctor_add') }}">Добавить первого</a>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

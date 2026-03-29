@@ -1,0 +1,46 @@
+{% extends 'base/base.html' %}
+{% block title %}Импорт данных Доро Лайн{% endblock %}
+{% block page_title %}Импорт данных Доро Лайн{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom:2rem;">
+  <h1>📥 Импорт данных из Excel</h1>
+</div>
+
+<div class="card" style="max-width:600px;">
+  <div class="card-header" style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);">
+    <strong>Источник данных</strong>
+  </div>
+  <div style="padding:1.25rem;">
+    <p>Будут прочитаны следующие файлы из папки <strong>дора лайн движение</strong>:</p>
+    <ul style="margin:.5rem 0 1rem 1.5rem;">
+      <li>Доро Лайн движ.xlsx — сводка по товарам</li>
+      <li>Доро Лайн движ детали.xlsx — детальные движения</li>
+      <li>Движение номен-ры по фирме ИП Арапова за февраль.xls</li>
+      <li>Анализ номен-ры по фирме ИП Арапова за февраль.xls</li>
+    </ul>
+    <p style="color:var(--text2);font-size:.85rem;">
+      Товары и партии будут созданы в базе данных. Повторный запуск не дублирует данные.
+    </p>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;
+      background:{% if msg.tags == 'error' %}#fee2e2{% else %}#dcfce7{% endif %};">
+      {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" style="margin-top:1rem;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary" style="padding:.6rem 1.5rem;font-size:1rem;">
+        Запустить импорт
+      </button>
+      <a href="{% url 'dora_report' %}" style="margin-left:1rem;color:var(--accent);">
+        Просмотреть данные без импорта →
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

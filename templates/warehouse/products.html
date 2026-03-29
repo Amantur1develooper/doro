@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Препараты{% endblock %}
+{% block page_title %}Каталог препаратов{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Препараты <span class="badge bg-secondary">{{ products|length }}</span></h5>
+  <a href="{{ url_for('product_add') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Добавить препарат</a>
+</div>
+<div class="filters-bar">
+  <form method="GET" class="row g-2">
+    <div class="col-md-5"><input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск по названию, МНН, артикулу..." value="{{ q }}"></div>
+    <div class="col-md-4"><select name="cat_id" class="form-select form-select-sm"><option value="">Все категории</option>{% for c in categories %}<option value="{{ c.id }}" {% if request.args.get('cat_id')==c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Найти</button></div>
+  </form>
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Препарат</th><th>МНН</th><th>Категория</th><th>Форма</th><th>Производитель</th><th class="text-end">Закупка</th><th class="text-end">Продажа</th><th class="text-end">Остаток</th><th></th></tr></thead>
+        <tbody>
+          {% for p in products %}<tr>
+            <td><div class="fw-semibold">{{ p.name }}</div><small class="text-muted">{{ p.sku or '' }}</small></td>
+            <td><small>{{ p.inn or '—' }}</small></td>
+            <td><span class="badge bg-light text-dark">{{ p.category_name or '—' }}</span></td>
+            <td><small>{{ p.form or '—' }} {{ p.dosage or '' }}</small></td>
+            <td><small>{{ p.manufacturer or '—' }}</small></td>
+            <td class="text-end">{{ '%.2f'|format(p.purchase_price) }}</td>
+            <td class="text-end fw-semibold">{{ '%.2f'|format(p.sale_price) }}</td>
+            <td class="text-end">
+              {% if p.total_stock <= 0 %}<span class="status-badge" style="background:#fee2e2;color:#991b1b">0</span>
+              {% elif p.total_stock <= 10 %}<span class="status-badge status-low">{{ p.total_stock }}</span>
+              {% else %}<span class="status-badge status-confirmed">{{ '%.0f'|format(p.total_stock) }}</span>{% endif %}
+            </td>
+            <td><a href="{{ url_for('product_edit', pid=p.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a></td>
+          </tr>{% else %}
+          <tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-capsule fs-2 d-block mb-2 opacity-25"></i>Препараты не найдены. <a href="{{ url_for('product_add') }}">Добавить первый</a></td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

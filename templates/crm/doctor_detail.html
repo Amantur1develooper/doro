@@ -1,0 +1,85 @@
+{% extends 'base/base.html' %}
+{% block title %}{{ doctor.full_name }}{% endblock %}
+{% block page_title %}{{ doctor.full_name }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'visit_create' %}" class="btn btn-primary btn-sm">+ Новый визит</a>
+  <a href="{% url 'doctors_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns: 1fr 2fr; gap:24px;">
+
+  <div>
+    <div class="card">
+      <div style="text-align:center; padding: 10px 0 20px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px;">👨‍⚕️</div>
+        <h2 style="font-size:17px;font-weight:700;">{{ doctor.full_name }}</h2>
+        <span class="badge badge-blue">{{ doctor.specialty|default:"—" }}</span>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Медучреждение</div>
+        <div class="detail-value">{{ doctor.institution|default:"—" }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Телефон</div>
+        <div class="detail-value">{{ doctor.phone|default:"—" }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Адрес</div>
+        <div class="detail-value">{{ doctor.address|default:"—" }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Регион</div>
+        <div class="detail-value">{{ doctor.region.name|default:"—" }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Представитель</div>
+        <div class="detail-value">{{ doctor.representative.get_full_name|default:"—" }}</div>
+      </div>
+      {% if doctor.notes %}
+      <div class="detail-item">
+        <div class="detail-label">Заметки</div>
+        <div class="detail-value" style="font-size:13px;">{{ doctor.notes }}</div>
+      </div>
+      {% endif %}
+      <div style="margin-top:16px; display:flex; gap:8px;">
+        <a href="{% url 'visit_create' %}" class="btn btn-primary btn-sm" style="flex:1; justify-content:center;">+ Визит</a>
+        <a href="{% url 'doctors_list' %}" class="btn btn-secondary btn-sm">←</a>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📅 История визитов ({{ visits|length }})</h3>
+      {% if visits %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Дата</th><th>Сотрудник</th><th>Статус</th><th>Результат</th></tr>
+          </thead>
+          <tbody>
+          {% for v in visits %}
+          <tr>
+            <td>{{ v.planned_date|date:"d.m.Y H:i" }}</td>
+            <td>{{ v.employee.get_full_name }}</td>
+            <td>
+              {% if v.status == 'done' %}<span class="badge badge-green">Выполнен</span>
+              {% elif v.status == 'planned' %}<span class="badge badge-blue">Запланирован</span>
+              {% elif v.status == 'cancelled' %}<span class="badge badge-red">Отменён</span>
+              {% else %}<span class="badge badge-yellow">Перенесён</span>{% endif %}
+            </td>
+            <td style="color:var(--text2); font-size:13px;">{{ v.result|default:"—"|truncatechars:80 }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="text-align:center;padding:20px;">Визитов пока нет</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

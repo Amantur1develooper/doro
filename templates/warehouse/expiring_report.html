@@ -1,0 +1,63 @@
+{% extends 'base/base.html' %}
+{% block title %}Сроки годности{% endblock %}
+{% block page_title %}Сроки годности{% endblock %}
+
+{% block content %}
+{% if expired %}
+<div class="alert alert-error">🚫 Просроченные товары ({{ expired.count }} партий) — требуется срочное списание!</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div>
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--warning);">⚠️ Истекают в течение 90 дней ({{ expiring.count }})</h3>
+      {% if expiring %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Препарат</th><th>Партия</th><th>Склад</th><th>Срок</th><th>Кол-во</th></tr></thead>
+          <tbody>
+          {% for b in expiring %}
+          <tr>
+            <td><a href="{% url 'product_detail' b.product.pk %}" style="color:var(--accent);">{{ b.product.name }}</a></td>
+            <td>{{ b.batch_number }}</td>
+            <td>{{ b.warehouse.name }}</td>
+            <td style="color:var(--warning);font-weight:600;">{{ b.expiry_date }}</td>
+            <td>{{ b.quantity }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="text-align:center;padding:20px;">✅ Нет товаров с истекающим сроком</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;color:var(--danger);">❌ Просроченные ({{ expired.count }})</h3>
+      {% if expired %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Препарат</th><th>Партия</th><th>Склад</th><th>Истек</th><th>Кол-во</th></tr></thead>
+          <tbody>
+          {% for b in expired %}
+          <tr>
+            <td><a href="{% url 'product_detail' b.product.pk %}" style="color:var(--accent);">{{ b.product.name }}</a></td>
+            <td>{{ b.batch_number }}</td>
+            <td>{{ b.warehouse.name }}</td>
+            <td style="color:var(--danger);font-weight:600;">{{ b.expiry_date }}</td>
+            <td>{{ b.quantity }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="text-align:center;padding:20px;">✅ Просроченных товаров нет</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
