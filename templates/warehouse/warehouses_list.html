@@ -5,7 +5,10 @@
 {% block content %}
 <div class="page-header">
   <h1>🏭 Склады</h1>
-  <a href="{% url 'stock_in' %}" class="btn btn-primary">+ Принять товар</a>
+  <div style="display:flex;gap:.5rem;">
+    <a href="{% url 'warehouse_create' %}" class="btn btn-primary">+ Новый склад</a>
+    <a href="{% url 'stock_in' %}" class="btn btn-secondary">+ Принять товар</a>
+  </div>
 </div>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">

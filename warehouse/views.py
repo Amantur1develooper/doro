@@ -94,6 +94,24 @@ def product_create(request):
 
 
 @login_required
+def warehouse_create(request):
+    from accounts.models import User
+    managers = User.objects.filter(role__in=['warehouse', 'sales_manager', 'superadmin', 'director'])
+    if request.method == 'POST':
+        w = Warehouse(
+            name=request.POST.get('name', '').strip(),
+            address=request.POST.get('address', '').strip(),
+        )
+        manager_id = request.POST.get('manager')
+        if manager_id:
+            w.manager_id = manager_id
+        w.save()
+        messages.success(request, f'Склад «{w.name}» добавлен')
+        return redirect('warehouses_list')
+    return render(request, 'warehouse/warehouse_form.html', {'managers': managers})
+
+
+@login_required
 def stock_in(request):
     warehouses = Warehouse.objects.all()
     products = Product.objects.all()

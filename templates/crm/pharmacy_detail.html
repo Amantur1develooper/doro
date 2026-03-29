@@ -1,66 +1,157 @@
-{% extends 'base.html' %}
+{% extends 'base/base.html' %}
 {% block title %}{{ pharmacy.name }}{% endblock %}
 {% block page_title %}Карточка аптеки{% endblock %}
+
 {% block content %}
-<div class="row g-3">
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-body text-center pb-0">
-        <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:1.5rem">🏪</div>
-        <h5 class="fw-bold">{{ pharmacy.name }}</h5>
-        <p class="text-muted small">{{ pharmacy.address or '' }}</p>
-      </div>
-      <div class="card-body">
-        <div class="d-flex justify-content-between py-2 border-bottom"><small class="text-muted">Регион</small><small class="fw-semibold">{{ pharmacy.region_name or '—' }}</small></div>
-        <div class="d-flex justify-content-between py-2 border-bottom"><small class="text-muted">Контакт</small><small class="fw-semibold">{{ pharmacy.contact_person or '—' }}</small></div>
-        <div class="d-flex justify-content-between py-2 border-bottom"><small class="text-muted">Телефон</small><small class="fw-semibold">{{ pharmacy.phone or '—' }}</small></div>
-        <div class="d-flex justify-content-between py-2 border-bottom"><small class="text-muted">Представитель</small><small class="fw-semibold">{{ pharmacy.rep_name or '—' }}</small></div>
-        <div class="d-flex justify-content-between py-2 {% if pharmacy.debt > 0 %}text-danger{% endif %}"><small class="text-muted">Задолженность</small><small class="fw-bold">{{ '%.0f'|format(pharmacy.debt or 0) }} сом</small></div>
-      </div>
-      <div class="card-footer d-flex gap-2">
-        <a href="{{ url_for('pharmacy_edit', pid=pharmacy.id) }}" class="btn btn-sm btn-primary w-100"><i class="bi bi-pencil me-1"></i>Редактировать</a>
-        <a href="{{ url_for('pharmacies') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-      </div>
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+  <a href="{% url 'pharmacies_list' %}" class="btn-back">← Назад</a>
+  <h1>🏥 {{ pharmacy.name }}</h1>
+</div>
+
+<div style="display:grid;grid-template-columns:300px 1fr;gap:1.5rem;align-items:start;">
+
+  <!-- Left: pharmacy info -->
+  <div class="card" style="padding:1.25rem;">
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;
+                  display:flex;align-items:center;justify-content:center;
+                  margin:0 auto .75rem;font-size:1.5rem;">🏪</div>
+      <div style="font-weight:700;font-size:1.05rem;">{{ pharmacy.name }}</div>
+      {% if pharmacy.address %}
+      <div style="font-size:.82rem;color:var(--text2);">{{ pharmacy.address }}</div>
+      {% endif %}
+    </div>
+
+    <div class="detail-item">
+      <div class="detail-label">Регион</div>
+      <div class="detail-value">{{ pharmacy.region.name|default:"—" }}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">Контактное лицо</div>
+      <div class="detail-value">{{ pharmacy.contact_person|default:"—" }}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">Телефон</div>
+      <div class="detail-value">{{ pharmacy.phone|default:"—" }}</div>
+    </div>
+    <div class="detail-item">
+      <div class="detail-label">Представитель</div>
+      <div class="detail-value">{{ pharmacy.representative.get_full_name|default:"—" }}</div>
+    </div>
+    <div class="detail-item" {% if pharmacy.debt > 0 %}style="color:#dc2626;"{% endif %}>
+      <div class="detail-label">Задолженность</div>
+      <div class="detail-value" style="font-weight:700;">{{ pharmacy.debt|floatformat:0 }} сом</div>
+    </div>
+    {% if pharmacy.notes %}
+    <div class="detail-item">
+      <div class="detail-label">Заметки</div>
+      <div class="detail-value" style="font-size:.82rem;">{{ pharmacy.notes }}</div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:.5rem;margin-top:1.25rem;">
+      <a href="{% url 'pharmacy_create' %}" class="btn btn-secondary btn-sm"
+        style="flex:1;text-align:center;">✏️ Редактировать</a>
+      <a href="{% url 'sale_create' %}" class="btn btn-primary btn-sm"
+        style="flex:1;text-align:center;">+ Продажа</a>
     </div>
   </div>
-  <div class="col-lg-8">
-    <div class="card mb-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-cart me-2"></i>Продажи ({{ sales|length }})</span>
-        <a href="{{ url_for('sale_add') }}" class="btn btn-sm btn-outline-success">+ Продажа</a>
-      </div>
-      <div class="card-body p-0">
-        <table class="table table-hover mb-0 table-sm">
-          <thead><tr><th>Дата</th><th>Документ</th><th>Склад</th><th>Представитель</th><th class="text-end">Сумма</th><th class="text-end">Маржа</th><th>Статус</th></tr></thead>
-          <tbody>
-            {% for s in sales %}<tr>
-              <td><a href="{{ url_for('sale_detail', sid=s.id) }}" class="text-decoration-none">{{ s.sale_date }}</a></td>
-              <td><small>{{ s.document_number or '—' }}</small></td><td><small>{{ s.warehouse_name }}</small></td>
-              <td><small>{{ s.rep_name }}</small></td>
-              <td class="text-end fw-semibold">{{ '%.0f'|format(s.total_amount) }}</td>
-              <td class="text-end text-success">{{ '%.0f'|format(s.total_margin) }}</td>
-              <td><span class="status-badge status-{{ s.status }}">{{ s.status }}</span></td>
-            </tr>{% else %}
-            <tr><td colspan="7" class="text-center py-2 text-muted">Продаж нет</td></tr>{% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+
+  <!-- Right: sales + visits -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+    <!-- Sales -->
     <div class="card">
-      <div class="card-header"><i class="bi bi-geo-alt me-2"></i>Визиты ({{ visits|length }})</div>
-      <div class="card-body p-0">
-        <table class="table table-hover mb-0 table-sm">
-          <thead><tr><th>Дата</th><th>Представитель</th><th>Статус</th><th>Результат</th></tr></thead>
+      <div style="padding:.75rem 1.25rem;border-bottom:1px solid var(--border,#e2e8f0);
+                  display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:600;">🛒 Продажи ({{ sales|length }})</span>
+        <a href="{% url 'sale_create' %}" class="btn btn-primary btn-sm">+ Новая продажа</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Представитель</th>
+              <th>Склад</th>
+              <th style="text-align:right;">Сумма</th>
+              <th style="text-align:right;">Маржа</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
           <tbody>
-            {% for v in visits %}<tr>
-              <td>{{ v.actual_date or v.planned_date or '—' }}</td><td>{{ v.rep_name }}</td>
-              <td><span class="status-badge status-{{ v.status }}">{{ v.status }}</span></td>
-              <td><small>{{ v.result or '—' }}</small></td>
-            </tr>{% else %}<tr><td colspan="4" class="text-center py-2 text-muted">Визитов нет</td></tr>{% endfor %}
+            {% for s in sales %}
+            <tr>
+              <td>
+                <a href="{% url 'sale_detail' s.pk %}" style="color:var(--accent);">
+                  {{ s.date|date:"d.m.Y" }}
+                </a>
+              </td>
+              <td>{{ s.employee.get_full_name|default:"—" }}</td>
+              <td>{{ s.warehouse.name|default:"—" }}</td>
+              <td style="text-align:right;font-weight:600;">{{ s.total_amount|floatformat:0 }}</td>
+              <td style="text-align:right;color:#16a34a;">{{ s.margin|floatformat:0 }}</td>
+              <td>
+                {% if s.status == 'pending' %}<span class="badge badge-yellow">В обработке</span>
+                {% elif s.status == 'confirmed' %}<span class="badge badge-green">Подтверждена</span>
+                {% elif s.status == 'shipped' %}<span class="badge badge-blue">Отгружена</span>
+                {% else %}<span class="badge badge-red">Отменена</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:24px;">
+              Продаж нет
+            </td></tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+
+    <!-- Visits -->
+    <div class="card">
+      <div style="padding:.75rem 1.25rem;border-bottom:1px solid var(--border,#e2e8f0);
+                  display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:600;">📅 Визиты ({{ visits|length }})</span>
+        <a href="{% url 'visit_create' %}" class="btn btn-secondary btn-sm">+ Визит</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Представитель</th>
+              <th>Статус</th>
+              <th>Результат</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in visits %}
+            <tr>
+              <td>
+                <a href="{% url 'visit_detail' v.pk %}" style="color:var(--accent);">
+                  {{ v.actual_date|date:"d.m.Y"|default:v.planned_date|date:"d.m.Y" }}
+                </a>
+              </td>
+              <td>{{ v.employee.get_full_name|default:"—" }}</td>
+              <td>
+                {% if v.status == 'done' %}<span class="badge badge-green">Выполнен</span>
+                {% elif v.status == 'planned' %}<span class="badge badge-blue">Запланирован</span>
+                {% elif v.status == 'cancelled' %}<span class="badge badge-red">Отменён</span>
+                {% else %}<span class="badge badge-yellow">Перенесён</span>{% endif %}
+              </td>
+              <td style="font-size:.82rem;">{{ v.result|truncatechars:60|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:var(--text2);padding:24px;">
+              Визитов нет
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}

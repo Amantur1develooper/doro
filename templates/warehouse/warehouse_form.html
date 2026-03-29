@@ -1,27 +1,68 @@
-{% extends 'base.html' %}
-{% block title %}{{ 'Редактировать' if warehouse else 'Добавить склад' }}{% endblock %}
-{% block page_title %}{{ 'Редактировать склад' if warehouse else 'Новый склад' }}{% endblock %}
+{% extends 'base/base.html' %}
+{% block title %}{% if warehouse %}Редактировать склад{% else %}Новый склад{% endif %}{% endblock %}
+{% block page_title %}{% if warehouse %}Редактировать склад{% else %}Новый склад{% endif %}{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center"><div class="col-lg-6">
-  <div class="card">
-    <div class="card-header d-flex align-items-center gap-2">
-      <a href="{{ url_for('warehouses') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-      <span>{{ 'Редактировать склад' if warehouse else 'Новый склад' }}</span>
-    </div>
-    <div class="card-body">
-      <form method="POST">
-        <div class="row g-3">
-          <div class="col-12"><label class="form-label">Название <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required value="{{ warehouse.name if warehouse else '' }}"></div>
-          <div class="col-12"><label class="form-label">Адрес</label><input type="text" name="address" class="form-control" value="{{ warehouse.address if warehouse else '' }}"></div>
-          <div class="col-md-6"><label class="form-label">Регион</label><select name="region_id" class="form-select"><option value="">Не выбран</option>{% for r in regions %}<option value="{{ r.id }}" {% if warehouse and warehouse.region_id==r.id %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
-          <div class="col-md-6"><label class="form-label">Менеджер склада</label><select name="manager_id" class="form-select"><option value="">Не назначен</option>{% for m in managers %}<option value="{{ m.id }}" {% if warehouse and warehouse.manager_id==m.id %}selected{% endif %}>{{ m.full_name }}</option>{% endfor %}</select></div>
+<div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+  <a href="{% url 'warehouses_list' %}" class="btn-back">← Назад</a>
+  <h1>🏭 {% if warehouse %}Редактировать склад{% else %}Новый склад{% endif %}</h1>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <div style="padding:1.5rem;">
+
+    {% if messages %}
+      {% for msg in messages %}
+      <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;
+        background:{% if msg.tags == 'error' %}#fee2e2{% else %}#dcfce7{% endif %};">
+        {{ msg }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+
+        <div>
+          <label class="form-label">Название <span style="color:red">*</span></label>
+          <input type="text" name="name" class="form-control" required
+            value="{{ warehouse.name|default:'' }}"
+            placeholder="Основной склад Бишкек">
         </div>
-        <div class="d-flex gap-2 mt-4">
-          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ 'Сохранить' if warehouse else 'Добавить' }}</button>
-          <a href="{{ url_for('warehouses') }}" class="btn btn-outline-secondary">Отмена</a>
+
+        <div>
+          <label class="form-label">Адрес</label>
+          <input type="text" name="address" class="form-control"
+            value="{{ warehouse.address|default:'' }}"
+            placeholder="г. Бишкек, ул. Манаса 45">
         </div>
-      </form>
-    </div>
+
+        <div>
+          <label class="form-label">Менеджер склада</label>
+          <select name="manager" class="form-control">
+            <option value="">— Не назначен —</option>
+            {% for m in managers %}
+            <option value="{{ m.pk }}"
+              {% if warehouse and warehouse.manager_id == m.pk %}selected{% endif %}>
+              {{ m.get_full_name|default:m.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+        <button type="submit" class="btn btn-primary">
+          {% if warehouse %}Сохранить{% else %}Добавить склад{% endif %}
+        </button>
+        <a href="{% url 'warehouses_list' %}" class="btn"
+          style="background:var(--bg2,#f1f5f9);">Отмена</a>
+      </div>
+    </form>
+
   </div>
-</div></div>
+</div>
 {% endblock %}
