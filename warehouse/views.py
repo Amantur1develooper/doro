@@ -72,23 +72,39 @@ def product_detail(request, pk):
 def product_create(request):
     categories = ProductCategory.objects.all()
     if request.method == 'POST':
+        sku = request.POST.get('sku', '').strip()
+        name = request.POST.get('name', '').strip()
+
+        if not name:
+            messages.error(request, 'Название товара обязательно')
+            return render(request, 'warehouse/product_form.html', {'categories': categories, 'post': request.POST})
+
+        if not sku:
+            messages.error(request, 'Артикул (SKU) обязателен')
+            return render(request, 'warehouse/product_form.html', {'categories': categories, 'post': request.POST})
+
+        if Product.objects.filter(sku=sku).exists():
+            messages.error(request, f'Товар с артикулом «{sku}» уже существует. Укажите другой артикул.')
+            return render(request, 'warehouse/product_form.html', {'categories': categories, 'post': request.POST})
+
         p = Product(
-            name=request.POST.get('name'),
+            name=name,
             international_name=request.POST.get('international_name', ''),
             form=request.POST.get('form', ''),
             dosage=request.POST.get('dosage', ''),
             manufacturer=request.POST.get('manufacturer', ''),
-            sku=request.POST.get('sku'),
+            sku=sku,
             unit=request.POST.get('unit', 'шт'),
-            purchase_price=request.POST.get('purchase_price', 0),
-            cost_price=request.POST.get('cost_price', 0),
-            sale_price=request.POST.get('sale_price', 0),
+            purchase_price=request.POST.get('purchase_price', 0) or 0,
+            cost_price=request.POST.get('cost_price', 0) or 0,
+            sale_price=request.POST.get('sale_price', 0) or 0,
             notes=request.POST.get('notes', ''),
         )
         cat_id = request.POST.get('category')
-        if cat_id: p.category_id = cat_id
+        if cat_id:
+            p.category_id = cat_id
         p.save()
-        messages.success(request, 'Товар добавлен')
+        messages.success(request, f'Товар «{name}» добавлен')
         return redirect('products_list')
     return render(request, 'warehouse/product_form.html', {'categories': categories})
 
