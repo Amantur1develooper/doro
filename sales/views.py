@@ -43,11 +43,12 @@ def sale_create(request):
     employees = User.objects.filter(role__in=['med_rep', 'sales_manager'])
     batches = Batch.objects.filter(quantity__gt=0).select_related('product', 'warehouse')
     if request.method == 'POST':
+        from decimal import Decimal, InvalidOperation
         paid_raw = request.POST.get('paid_amount', '0') or '0'
         try:
-            paid_amount = float(paid_raw)
-        except ValueError:
-            paid_amount = 0
+            paid_amount = Decimal(paid_raw)
+        except InvalidOperation:
+            paid_amount = Decimal('0')
 
         sale = Sale(
             date=request.POST.get('date'),
@@ -172,10 +173,11 @@ def debts_list(request):
 def payment_create(request, pharmacy_id):
     pharmacy = get_object_or_404(Pharmacy, pk=pharmacy_id)
     if request.method == 'POST':
+        from decimal import Decimal, InvalidOperation
         amount_raw = request.POST.get('amount', '0') or '0'
         try:
-            amount = float(amount_raw)
-        except ValueError:
+            amount = Decimal(amount_raw)
+        except InvalidOperation:
             messages.error(request, 'Неверная сумма')
             return redirect('payment_create', pharmacy_id=pharmacy_id)
 
