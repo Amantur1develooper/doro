@@ -20,7 +20,7 @@
       {% endfor %}
     {% endif %}
 
-    <form method="post" id="saleForm" onsubmit="return buildItemsJson()">
+    <form method="post" id="saleForm" enctype="multipart/form-data" onsubmit="return buildItemsJson()">
       {% csrf_token %}
 
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
@@ -69,6 +69,28 @@
           <input type="text" name="notes" class="form-control" placeholder="Номер накладной...">
         </div>
 
+      </div>
+
+      <!-- Оплата -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;padding:1rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+        <div>
+          <label class="form-label">💵 Оплачено сейчас (сом)</label>
+          <input type="number" name="paid_amount" id="paidAmount" step="0.01" min="0" value="0"
+            class="form-control" oninput="updateDebt()">
+          <div style="font-size:11px;color:var(--text2);margin-top:4px;">Сколько оплатил при получении</div>
+        </div>
+        <div>
+          <label class="form-label">📋 Долг после продажи</label>
+          <div id="debtPreview" style="font-size:18px;font-weight:700;color:var(--danger);padding:8px 0;">— сом</div>
+          <div style="font-size:11px;color:var(--text2);">Итого − Оплачено</div>
+        </div>
+      </div>
+
+      <!-- Чек / Фото -->
+      <div style="margin-bottom:1.5rem;">
+        <label class="form-label">📎 Чек / Фото документа</label>
+        <input type="file" name="receipt" accept="image/*,.pdf" class="form-control">
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Фото накладной, чека или любого документа (jpg, png, pdf)</div>
       </div>
 
       <!-- Items table -->
@@ -218,6 +240,20 @@ function calcTotal() {
   });
   document.getElementById('grandTotal').textContent =
     total.toLocaleString('ru', {maximumFractionDigits:2});
+  updateDebt();
+}
+
+function updateDebt() {
+  let total = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    total += (parseFloat(row.querySelector('.qty-input').value) || 0) *
+             (parseFloat(row.querySelector('.price-input').value) || 0);
+  });
+  const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+  const debt = Math.max(0, total - paid);
+  const el = document.getElementById('debtPreview');
+  el.textContent = debt.toLocaleString('ru', {maximumFractionDigits:0}) + ' сом';
+  el.style.color = debt > 0 ? 'var(--danger)' : 'var(--success)';
 }
 
 function buildItemsJson() {

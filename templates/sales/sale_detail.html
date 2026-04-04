@@ -73,6 +73,38 @@
         </div>
       </div>
 
+      <div class="detail-item"><div class="detail-label">💵 Оплачено</div>
+        <div class="detail-value" style="color:var(--success);font-weight:700;">
+          {{ sale.paid_amount|floatformat:0 }} сом
+        </div>
+      </div>
+
+      {% with debt=sale.total_amount|add:"-"|add:sale.paid_amount %}
+      <div class="detail-item"><div class="detail-label">📋 В долг</div>
+        <div class="detail-value" style="font-weight:700;{% if sale.paid_amount < sale.total_amount %}color:var(--danger);{% else %}color:var(--success);{% endif %}">
+          {% if sale.paid_amount >= sale.total_amount %}
+            Полностью оплачено ✅
+          {% else %}
+            {{ sale.total_amount|floatformat:0 }}−{{ sale.paid_amount|floatformat:0 }} сом
+          {% endif %}
+        </div>
+      </div>
+      {% endwith %}
+
+      {% if sale.receipt %}
+      <div class="detail-item"><div class="detail-label">📎 Чек / Документ</div>
+        <div style="margin-top:6px;">
+          {% if sale.receipt.name|lower|slice:"-4:" == ".pdf" %}
+            <a href="{{ sale.receipt.url }}" target="_blank" class="btn btn-secondary btn-sm">📄 Открыть PDF</a>
+          {% else %}
+            <a href="{{ sale.receipt.url }}" target="_blank">
+              <img src="{{ sale.receipt.url }}" style="max-width:100%;max-height:180px;border-radius:7px;border:1px solid var(--border);">
+            </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if sale.notes %}
       <div class="detail-item"><div class="detail-label">Заметки</div>
         <div class="detail-value">{{ sale.notes }}</div></div>

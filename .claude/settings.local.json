@@ -6,7 +6,9 @@
       "Bash(python -c \":*)",
       "Bash(mkdir -p /Users/amanturerkinov/Downloads/dorolien/warehouse/management/commands)",
       "Bash(touch /Users/amanturerkinov/Downloads/dorolien/warehouse/management/__init__.py)",
-      "Bash(touch /Users/amanturerkinov/Downloads/dorolien/warehouse/management/commands/__init__.py)"
+      "Bash(touch /Users/amanturerkinov/Downloads/dorolien/warehouse/management/commands/__init__.py)",
+      "Bash(venv/bin/python manage.py makemigrations sales)",
+      "Bash(venv/bin/python manage.py migrate)"
     ]
   }
 }

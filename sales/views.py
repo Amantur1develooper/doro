@@ -2,7 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Sum, Count
-from .models import Sale, SaleItem, SalesPlan, Invoice
+from django.utils import timezone
+from .models import Sale, SaleItem, SalesPlan, Invoice, Payment
 from crm.models import Pharmacy
 from warehouse.models import Warehouse, Batch, StockMovement
 from accounts.models import User
@@ -42,13 +43,22 @@ def sale_create(request):
     employees = User.objects.filter(role__in=['med_rep', 'sales_manager'])
     batches = Batch.objects.filter(quantity__gt=0).select_related('product', 'warehouse')
     if request.method == 'POST':
+        paid_raw = request.POST.get('paid_amount', '0') or '0'
+        try:
+            paid_amount = float(paid_raw)
+        except ValueError:
+            paid_amount = 0
+
         sale = Sale(
             date=request.POST.get('date'),
             pharmacy_id=request.POST.get('pharmacy'),
             employee_id=request.POST.get('employee') or request.user.id,
             warehouse_id=request.POST.get('warehouse'),
+            paid_amount=paid_amount,
             notes=request.POST.get('notes', ''),
         )
+        if request.FILES.get('receipt'):
+            sale.receipt = request.FILES['receipt']
         sale.save()
 
         total_amount = 0
@@ -107,10 +117,12 @@ def sale_confirm(request, pk):
                 employee=request.user,
                 notes=f'Продажа #{sale.pk}',
             )
-        # Update pharmacy debt
+        # Update pharmacy debt: only the unpaid part becomes debt
         if sale.pharmacy:
-            sale.pharmacy.debt += sale.total_amount
-            sale.pharmacy.save()
+            debt_increase = sale.total_amount - sale.paid_amount
+            if debt_increase > 0:
+                sale.pharmacy.debt += debt_increase
+                sale.pharmacy.save()
         messages.success(request, 'Продажа подтверждена, остатки обновлены')
     return redirect('sale_detail', pk=pk)
 
@@ -148,6 +160,45 @@ def sales_analytics(request):
 def debts_list(request):
     pharmacies = Pharmacy.objects.filter(debt__gt=0).order_by('-debt')
     total_debt = pharmacies.aggregate(t=Sum('debt'))['t'] or 0
+    recent_payments = Payment.objects.select_related('pharmacy', 'employee').order_by('-date')[:20]
     return render(request, 'sales/debts_list.html', {
-        'pharmacies': pharmacies, 'total_debt': total_debt
+        'pharmacies': pharmacies,
+        'total_debt': total_debt,
+        'recent_payments': recent_payments,
     })
+
+
+@login_required
+def payment_create(request, pharmacy_id):
+    pharmacy = get_object_or_404(Pharmacy, pk=pharmacy_id)
+    if request.method == 'POST':
+        amount_raw = request.POST.get('amount', '0') or '0'
+        try:
+            amount = float(amount_raw)
+        except ValueError:
+            messages.error(request, 'Неверная сумма')
+            return redirect('payment_create', pharmacy_id=pharmacy_id)
+
+        if amount <= 0:
+            messages.error(request, 'Сумма должна быть больше 0')
+            return redirect('payment_create', pharmacy_id=pharmacy_id)
+
+        payment = Payment(
+            pharmacy=pharmacy,
+            amount=amount,
+            date=request.POST.get('date') or timezone.now().date(),
+            employee=request.user,
+            notes=request.POST.get('notes', ''),
+        )
+        if request.FILES.get('receipt'):
+            payment.receipt = request.FILES['receipt']
+        payment.save()
+
+        # Reduce pharmacy debt
+        pharmacy.debt = max(0, pharmacy.debt - amount)
+        pharmacy.save()
+
+        messages.success(request, f'Оплата {amount:,.0f} сом принята. Остаток долга: {pharmacy.debt:,.0f} сом')
+        return redirect('debts_list')
+
+    return render(request, 'sales/payment_form.html', {'pharmacy': pharmacy})

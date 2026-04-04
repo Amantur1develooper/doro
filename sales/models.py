@@ -36,6 +36,8 @@ class Sale(models.Model):
     status = models.CharField('Статус', max_length=15, choices=STATUS_CHOICES, default='pending')
     total_amount = models.DecimalField('Сумма', max_digits=14, decimal_places=2, default=0)
     total_cost = models.DecimalField('Себестоимость', max_digits=14, decimal_places=2, default=0)
+    paid_amount = models.DecimalField('Оплачено', max_digits=14, decimal_places=2, default=0)
+    receipt = models.FileField('Чек/Фото', upload_to='receipts/sales/', blank=True, null=True)
     notes = models.TextField('Примечания', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -77,6 +79,31 @@ class SaleItem(models.Model):
     @property
     def margin(self):
         return (self.sale_price - self.cost_price) * self.quantity
+
+
+class Payment(models.Model):
+    """Запись об оплате долга аптеки."""
+    pharmacy = models.ForeignKey(
+        'crm.Pharmacy', on_delete=models.CASCADE,
+        related_name='payments', verbose_name='Аптека'
+    )
+    amount = models.DecimalField('Сумма оплаты', max_digits=14, decimal_places=2)
+    date = models.DateField('Дата', default=timezone.now)
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, verbose_name='Принял'
+    )
+    receipt = models.FileField('Чек/Фото', upload_to='receipts/payments/', blank=True, null=True)
+    notes = models.TextField('Примечания', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Платёж'
+        verbose_name_plural = 'Платежи'
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"Платёж {self.pharmacy} — {self.amount} ({self.date})"
 
 
 class Invoice(models.Model):
