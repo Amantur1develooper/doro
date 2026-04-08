@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Накладная №{{ sale.invoice_number|default:sale.pk }} — {{ sale.pharmacy }}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 11pt;
+    color: #000;
+    background: #fff;
+    padding: 20mm 15mm;
+  }
+
+  /* ── Шапка ── */
+  .doc-title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6pt;
+    border-top: 2px solid #000;
+    border-bottom: 2px solid #000;
+    padding: 6pt 0;
+  }
+  .doc-subtitle {
+    text-align: center;
+    font-size: 11pt;
+    margin-bottom: 18pt;
+  }
+
+  /* ── Блок реквизитов ── */
+  .parties {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm;
+    margin-bottom: 14pt;
+  }
+  .party-box {
+    border: 1px solid #000;
+    padding: 8pt 10pt;
+    font-size: 10pt;
+  }
+  .party-box .party-title {
+    font-weight: bold;
+    font-size: 10.5pt;
+    border-bottom: 1px solid #000;
+    margin-bottom: 5pt;
+    padding-bottom: 3pt;
+  }
+  .party-box .row { margin-bottom: 2pt; }
+  .party-box .label { color: #333; }
+
+  /* ── Таблица товаров ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    margin-bottom: 10pt;
+  }
+  th {
+    border: 1px solid #000;
+    padding: 5pt 6pt;
+    text-align: center;
+    font-weight: bold;
+    background: #f5f5f5;
+  }
+  td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    vertical-align: middle;
+  }
+  td.num    { text-align: center; }
+  td.right  { text-align: right; }
+  td.center { text-align: center; }
+
+  /* ── Итого ── */
+  .total-row td {
+    font-weight: bold;
+    background: #f9f9f9;
+  }
+  .total-block {
+    margin: 8pt 0 16pt;
+    border: 1px solid #000;
+    padding: 8pt 12pt;
+    font-size: 11pt;
+  }
+  .total-block .line { margin-bottom: 4pt; }
+  .total-block .big  { font-size: 12pt; font-weight: bold; }
+
+  /* ── Подписи ── */
+  .signatures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20mm;
+    margin-top: 20pt;
+  }
+  .sig-line {
+    border-top: 1px solid #000;
+    padding-top: 4pt;
+    font-size: 10pt;
+    text-align: center;
+  }
+
+  /* ── Кнопки (только на экране) ── */
+  .print-actions {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 999;
+  }
+  .btn-print {
+    background: #0969da;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: sans-serif;
+  }
+  .btn-close {
+    background: #f1f5f9;
+    color: #333;
+    border: 1px solid #d0d7de;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: sans-serif;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  @media print {
+    .print-actions { display: none !important; }
+    body { padding: 10mm 12mm; }
+    @page { size: A4; margin: 10mm; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Кнопки управления -->
+<div class="print-actions">
+  <a href="{% url 'sale_detail' sale.pk %}" class="btn-close">← Назад</a>
+  <button class="btn-print" onclick="window.print()">🖨️ Печать / Сохранить PDF</button>
+</div>
+
+<!-- ── ЗАГОЛОВОК ─────────────────────────────────────────────── -->
+<div class="doc-title">Счёт-фактура (Накладная)</div>
+<div class="doc-subtitle">
+  № <strong>{{ sale.invoice_number|default:sale.pk }}</strong>
+  &nbsp;от&nbsp;
+  «{{ sale.date|date:"d" }}» {{ sale.date|date:"F Y" }} г.
+</div>
+
+<!-- ── ПОСТАВЩИК И ПОКУПАТЕЛЬ ──────────────────────────────── -->
+<div class="parties">
+
+  <!-- Поставщик -->
+  <div class="party-box">
+    <div class="party-title">Поставщик (Продавец):</div>
+    {% if sale.legal_entity %}
+    <div class="row"><strong>{{ sale.legal_entity.name }}</strong></div>
+    {% if sale.legal_entity.address %}
+    <div class="row"><span class="label">Адрес:</span> {{ sale.legal_entity.address }}</div>{% endif %}
+    {% if sale.legal_entity.bank %}
+    <div class="row"><span class="label">Банк:</span> {{ sale.legal_entity.bank }}</div>{% endif %}
+    {% if sale.legal_entity.account %}
+    <div class="row"><span class="label">Р/сч:</span> {{ sale.legal_entity.account }}</div>{% endif %}
+    {% if sale.legal_entity.bik %}
+    <div class="row"><span class="label">БИК:</span> {{ sale.legal_entity.bik }}</div>{% endif %}
+    {% if sale.legal_entity.inn %}
+    <div class="row"><span class="label">ИНН:</span> {{ sale.legal_entity.inn }}</div>{% endif %}
+    {% if sale.legal_entity.certificate %}
+    <div class="row"><span class="label">Свидетельство:</span> {{ sale.legal_entity.certificate }}</div>{% endif %}
+    {% else %}
+    <div class="row" style="color:#999;font-style:italic;">Юр. лицо не указано</div>
+    {% endif %}
+  </div>
+
+  <!-- Покупатель -->
+  <div class="party-box">
+    <div class="party-title">Покупатель:</div>
+    {% if sale.pharmacy %}
+    <div class="row"><strong>{{ sale.pharmacy.name }}</strong></div>
+    {% if sale.pharmacy.address %}
+    <div class="row"><span class="label">Адрес:</span> {{ sale.pharmacy.address }}</div>{% endif %}
+    {% if sale.pharmacy.phone %}
+    <div class="row"><span class="label">Тел:</span> {{ sale.pharmacy.phone }}</div>{% endif %}
+    {% if sale.pharmacy.contact_person %}
+    <div class="row"><span class="label">Контакт:</span> {{ sale.pharmacy.contact_person }}</div>{% endif %}
+    {% else %}
+    <div class="row">—</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ── ТАБЛИЦА ТОВАРОВ ─────────────────────────────────────── -->
+<table>
+  <thead>
+    <tr>
+      <th style="width:30px;">№</th>
+      <th>Наименование</th>
+      <th style="width:80px;">Срок год.</th>
+      <th style="width:55px;">Ед. изм.</th>
+      <th style="width:65px;">Кол-во</th>
+      <th style="width:80px;">№ партии</th>
+      <th style="width:80px;">Цена</th>
+      <th style="width:90px;">Сумма</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for item in items %}
+  <tr>
+    <td class="num">{{ forloop.counter }}</td>
+    <td>{{ item.batch.product.name }}{% if item.batch.product.dosage %} ({{ item.batch.product.dosage }}){% endif %}</td>
+    <td class="center">{{ item.batch.expiry_date|date:"d.m.Y" }}</td>
+    <td class="center">{{ item.batch.product.unit }}</td>
+    <td class="num">{{ item.quantity }}</td>
+    <td class="center">{{ item.batch.batch_number }}</td>
+    <td class="right">{{ item.sale_price|floatformat:0 }}</td>
+    <td class="right"><strong>{{ item.amount|floatformat:0 }}</strong></td>
+  </tr>
+  {% endfor %}
+  <!-- Итоговая строка -->
+  <tr class="total-row">
+    <td colspan="7" style="text-align:right;font-weight:bold;">ИТОГО:</td>
+    <td class="right">{{ sale.total_amount|floatformat:0 }}</td>
+  </tr>
+  </tbody>
+</table>
+
+<!-- ── ИТОГ ───────────────────────────────────────────────── -->
+<div class="total-block">
+  <div class="line big">ИТОГО К ОПЛАТЕ: {{ sale.total_amount|floatformat:0 }} сом</div>
+  <div class="line" style="margin-top:4pt;font-style:italic;">({{ total_words }})</div>
+  {% if sale.paid_amount and sale.paid_amount > 0 %}
+  <div class="line" style="margin-top:6pt;">Оплачено: <strong>{{ sale.paid_amount|floatformat:0 }} сом</strong>
+    &nbsp;|&nbsp; Остаток долга: <strong>{{ sale.remaining_debt|floatformat:0 }} сом</strong>
+  </div>
+  {% endif %}
+  {% if sale.notes %}
+  <div class="line" style="margin-top:6pt;color:#555;">Примечание: {{ sale.notes }}</div>
+  {% endif %}
+</div>
+
+<!-- ── ПОДПИСИ ────────────────────────────────────────────── -->
+<div class="signatures">
+  <div>
+    <div class="sig-line">ОТПУСТИЛ: ____________________________</div>
+    <div style="text-align:center;font-size:9pt;margin-top:3pt;color:#555;">
+      {% if sale.employee %}{{ sale.employee.get_full_name }}{% endif %}
+    </div>
+  </div>
+  <div>
+    <div class="sig-line">ПОЛУЧИЛ: _____________________________</div>
+    <div style="text-align:center;font-size:9pt;margin-top:3pt;color:#555;">
+      {% if sale.pharmacy %}{{ sale.pharmacy.contact_person }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+// Авто-печать по параметру ?print=1
+if (new URLSearchParams(location.search).get('print') === '1') {
+  window.onload = () => window.print();
+}
+</script>
+</body>
+</html>

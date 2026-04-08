@@ -6,10 +6,17 @@
 {% endblock %}
 
 {% block content %}
+
 <div class="page-header">
-  <h1>👨‍⚕️ База врачей</h1>
+  <h1>👨‍⚕️ {% if is_employee %}Мои врачи{% else %}База врачей{% endif %}</h1>
   <span class="text-muted">{{ doctors.count }} врачей</span>
 </div>
+
+{% if is_employee %}
+<div style="margin-bottom:14px;padding:10px 14px;background:#dbeafe;border-radius:8px;font-size:13px;color:#1d4ed8;">
+  🔒 Вы видите только своих врачей. Они доступны вам и вашему руководителю.
+</div>
+{% endif %}
 
 <form method="get" class="filter-bar">
   <input type="text" name="q" value="{{ search }}" placeholder="🔍 Поиск по ФИО...">
@@ -17,10 +24,12 @@
     <option value="">Все регионы</option>
     {% for r in regions %}<option value="{{ r.pk }}" {% if request.GET.region == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
   </select>
+  {% if not is_employee %}
   <select name="rep" onchange="this.form.submit()">
     <option value="">Все представители</option>
     {% for r in reps %}<option value="{{ r.pk }}" {% if request.GET.rep == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.get_full_name }}</option>{% endfor %}
   </select>
+  {% endif %}
   <button type="submit" class="btn btn-secondary btn-sm">Найти</button>
 </form>
 
@@ -32,27 +41,44 @@
         <th>Специализация</th>
         <th>Медучреждение</th>
         <th>Регион</th>
-        <th>Представитель</th>
+        {% if not is_employee %}<th>Представитель</th>{% endif %}
         <th>Телефон</th>
-        <th>Действия</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for d in doctors %}
       <tr>
-        <td><a href="{% url 'doctor_detail' d.pk %}" style="color:var(--accent);font-weight:600;">{{ d.full_name }}</a></td>
-        <td>{{ d.specialty }}</td>
-        <td>{{ d.institution }}</td>
-        <td>{{ d.region.name|default:"—" }}</td>
-        <td>{{ d.representative.get_full_name|default:"—" }}</td>
-        <td>{{ d.phone|default:"—" }}</td>
         <td>
+          <a href="{% url 'doctor_detail' d.pk %}" style="color:var(--accent);font-weight:600;">{{ d.full_name }}</a>
+        </td>
+        <td>{{ d.specialty }}</td>
+        <td>{{ d.institution|default:"—" }}</td>
+        <td>{{ d.region.name|default:"—" }}</td>
+        {% if not is_employee %}
+        <td>
+          {% if d.representative %}
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#0969da,#218bff);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;">
+              {{ d.representative.first_name.0|default:d.representative.username.0|upper }}
+            </div>
+            <span style="font-size:13px;">{{ d.representative.get_full_name }}</span>
+          </div>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        {% endif %}
+        <td>{{ d.phone|default:"—" }}</td>
+        <td style="white-space:nowrap;">
           <a href="{% url 'doctor_detail' d.pk %}" class="btn btn-secondary btn-sm">Карточка</a>
           <a href="{% url 'visit_create' %}?doctor={{ d.pk }}" class="btn btn-primary btn-sm">+ Визит</a>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="7" style="text-align:center; color:var(--text2); padding:30px;">Врачей не найдено</td></tr>
+      <tr>
+        <td colspan="{% if is_employee %}6{% else %}7{% endif %}" style="text-align:center;color:var(--text2);padding:30px;">
+          {% if is_employee %}У вас пока нет врачей. <a href="{% url 'doctor_create' %}" style="color:var(--accent);">Добавить врача →</a>{% else %}Врачей не найдено{% endif %}
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>

@@ -97,6 +97,21 @@ class Batch(models.Model):
         from datetime import date
         return self.expiry_date < date.today()
 
+    @property
+    def margin(self):
+        """Маржа = цена продажи товара − закупочная цена партии."""
+        sale = self.product.sale_price
+        if sale and self.purchase_price:
+            return sale - self.purchase_price
+        return 0
+
+    @property
+    def margin_pct(self):
+        sale = self.product.sale_price
+        if sale and sale > 0 and self.purchase_price:
+            return round(float(sale - self.purchase_price) / float(sale) * 100, 1)
+        return None
+
 
 class StockMovement(models.Model):
     TYPE_CHOICES = [

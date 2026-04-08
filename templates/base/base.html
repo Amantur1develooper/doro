@@ -526,7 +526,11 @@ textarea{resize:vertical;}
   </div>
 
   <div class="s-section">
-    <div class="s-label">Отчёты</div>
+    <div class="s-label">Аналитика</div>
+    <a href="{% url 'my_analytics' %}" onclick="closeSidebar()"
+       class="s-link {% if request.resolver_match.url_name == 'my_analytics' %}active{% endif %}">
+      <span class="si">📊</span>Моя аналитика
+    </a>
     <a href="{% url 'employee_report' %}" onclick="closeSidebar()"
        class="s-link {% if request.resolver_match.url_name == 'employee_report' %}active{% endif %}">
       <span class="si">👥</span>По сотрудникам

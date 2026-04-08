@@ -1,11 +1,18 @@
 {% extends 'base/base.html' %}
 {% block title %}Продажа #{{ sale.pk }}{% endblock %}
 {% block page_title %}Продажа #{{ sale.pk }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'invoice_view' sale.pk %}" target="_blank" class="btn btn-primary btn-sm">🖨️ Накладная</a>
+  <a href="{% url 'sales_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
 
 {% block content %}
 <div class="page-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
-  <a href="{% url 'sales_list' %}" class="btn-back">← Назад</a>
   <h1>💰 Продажа #{{ sale.pk }}</h1>
+  {% if sale.invoice_number %}
+  <span style="font-size:13px;color:var(--text2);">Накладная №{{ sale.invoice_number }}</span>
+  {% endif %}
+  <a href="{% url 'invoice_view' sale.pk %}" target="_blank" class="btn btn-primary btn-sm" style="margin-left:auto;">🖨️ Скачать накладную</a>
 </div>
 
 {% if messages %}

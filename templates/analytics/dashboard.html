@@ -1,9 +1,12 @@
 {% extends 'base/base.html' %}
 {% block title %}Дашборд{% endblock %}
 {% block page_title %}Дашборд{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'my_analytics' %}" class="btn btn-secondary btn-sm">📊 Моя аналитика</a>
+{% endblock %}
 
 {% block content %}
-<!-- STATS -->
+<!-- ── STAT CARDS ─────────────────────────────────────────────── -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon blue">💰</div>
@@ -25,8 +28,40 @@
     <div class="stat-icon cyan">📅</div>
     <div>
       <div class="stat-label">Визитов за месяц</div>
-      <div class="stat-value">{{ visits_count }}</div>
+      <div class="stat-value">{{ visits_done }}</div>
       <div class="stat-sub">из {{ visits_planned }} запланировано</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow">⚠️</div>
+    <div>
+      <div class="stat-label">Истекают сроки</div>
+      <div class="stat-value">{{ expiring_count }}</div>
+      <div class="stat-sub">Просрочено: {{ expired_count }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">📋</div>
+    <div>
+      <div class="stat-label">Задолженность</div>
+      <div class="stat-value">{{ total_debt|floatformat:0 }}</div>
+      <div class="stat-sub">сом</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue">👨‍⚕️</div>
+    <div>
+      <div class="stat-label">Врачей</div>
+      <div class="stat-value">{{ doctors_count }}</div>
+      <div class="stat-sub">в базе</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">🏥</div>
+    <div>
+      <div class="stat-label">Аптек</div>
+      <div class="stat-value">{{ pharmacies_count }}</div>
+      <div class="stat-sub">в базе</div>
     </div>
   </div>
   <div class="stat-card">
@@ -37,97 +72,129 @@
       <div class="stat-sub">сом</div>
     </div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon red">⚠️</div>
-    <div>
-      <div class="stat-label">Истекают сроки</div>
-      <div class="stat-value">{{ expiring_count }}</div>
-      <div class="stat-sub">Просрочено: {{ expired_count }} партий</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon yellow">📋</div>
-    <div>
-      <div class="stat-label">Задолженность аптек</div>
-      <div class="stat-value">{{ total_debt|floatformat:0 }}</div>
-      <div class="stat-sub">сом</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon blue">👨‍⚕️</div>
-    <div>
-      <div class="stat-label">Врачей в базе</div>
-      <div class="stat-value">{{ doctors_count }}</div>
-      <div class="stat-sub">в CRM</div>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon green">🏥</div>
-    <div>
-      <div class="stat-label">Аптек в базе</div>
-      <div class="stat-value">{{ pharmacies_count }}</div>
-      <div class="stat-sub">партнеров</div>
-    </div>
-  </div>
 </div>
 
-<!-- MAIN GRID -->
-<div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
-
-  <!-- TOP EMPLOYEES -->
-  <div class="card">
-    <div class="flex justify-between mb-2" style="margin-bottom: 16px;">
-      <h3 style="font-size:15px; font-weight:700;">🏆 Топ сотрудников (месяц)</h3>
-      <a href="{% url 'employee_report' %}" class="btn btn-secondary btn-sm">Все</a>
-    </div>
-    {% if top_employees %}
-    {% for emp in top_employees %}
-    <div style="display:flex; align-items:center; gap:12px; padding: 10px 0; border-bottom: 1px solid var(--border);">
-      <div style="width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
-        {{ forloop.counter }}
+<!-- ── PLAN PROGRESS (employee/manager) ──────────────────────── -->
+{% if my_plan or my_visits_plan %}
+<div class="card mb-2" style="margin-bottom:20px;">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">🎯 Выполнение плана (текущий месяц)</h3>
+  <div class="grid-2">
+    {% if my_plan %}
+    <div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;">💰 План продаж</span>
+        <span style="font-size:13px;color:var(--text2);">{{ my_sales_fact|floatformat:0 }} / {{ my_plan|floatformat:0 }} сом</span>
       </div>
-      <div style="flex:1;">
-        <div style="font-weight:600; font-size:13.5px;">{{ emp.employee__first_name }} {{ emp.employee__last_name }}</div>
-        <div style="font-size:11px; color:var(--text2);">{{ emp.sales_count|default:'' }} продаж</div>
+      {% widthratio my_sales_fact my_plan 100 as pct %}
+      <div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;width:{% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%;background:var(--accent);border-radius:99px;transition:width .5s;"></div>
       </div>
-      <div style="font-weight:700; color:var(--success);">{{ emp.total|floatformat:0 }} сом</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">{{ pct }}% выполнено</div>
     </div>
-    {% endfor %}
-    {% else %}
-    <p class="text-muted" style="text-align:center; padding: 20px;">Нет данных за текущий месяц</p>
+    {% endif %}
+    {% if my_visits_plan %}
+    <div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;">📅 План визитов</span>
+        <span style="font-size:13px;color:var(--text2);">{{ my_visits_fact }} / {{ my_visits_plan }}</span>
+      </div>
+      {% widthratio my_visits_fact my_visits_plan 100 as vpct %}
+      <div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;width:{% if vpct > 100 %}100{% else %}{{ vpct }}{% endif %}%;background:var(--success);border-radius:99px;transition:width .5s;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">{{ vpct }}% выполнено</div>
+    </div>
     {% endif %}
   </div>
+</div>
+{% endif %}
 
-  <!-- EXPIRING -->
+<!-- ── CHARTS ────────────────────────────────────────────────── -->
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <!-- Sales chart -->
   <div class="card">
-    <div class="flex justify-between mb-2" style="margin-bottom: 16px;">
-      <h3 style="font-size:15px; font-weight:700;">⚠️ Истекают сроки</h3>
-      <a href="{% url 'expiring_report' %}" class="btn btn-secondary btn-sm">Все</a>
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">💰 Продажи по месяцам</h3>
+    <div style="position:relative;height:220px;">
+      <canvas id="chartSales"></canvas>
     </div>
-    {% if expiring_batches %}
-    {% for b in expiring_batches %}
-    <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
-      <div style="font-weight:600; font-size:13px;">{{ b.product.name }}</div>
-      <div style="display:flex; gap:8px; margin-top:3px;">
-        <span class="badge badge-yellow">{{ b.expiry_date }}</span>
-        <span class="text-muted" style="font-size:11px;">{{ b.quantity }} шт • {{ b.warehouse.name }}</span>
-      </div>
+  </div>
+
+  <!-- Visits donut -->
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📅 Визиты по статусам</h3>
+    <div style="position:relative;height:220px;display:flex;align-items:center;justify-content:center;">
+      <canvas id="chartVisitStatus" style="max-width:220px;max-height:220px;"></canvas>
     </div>
-    {% endfor %}
-    {% else %}
-    <p class="text-muted" style="text-align:center; padding: 20px;">✅ Просроченных товаров нет</p>
-    {% endif %}
   </div>
 
 </div>
 
-<!-- BOTTOM GRID -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📈 Выполненные визиты по месяцам</h3>
+  <div style="position:relative;height:180px;">
+    <canvas id="chartVisitsLine"></canvas>
+  </div>
+</div>
 
-  <!-- RECENT SALES -->
+<!-- ── SUBORDINATES TABLE (manager) ──────────────────────────── -->
+{% if subordinates_data %}
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 style="font-size:15px;font-weight:700;">👥 Мои сотрудники (месяц)</h3>
+    <a href="{% url 'employee_report' %}" class="btn btn-secondary btn-sm">Подробнее</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Сотрудник</th><th>Продажи</th><th>Кол-во продаж</th><th>Визитов</th></tr>
+      </thead>
+      <tbody>
+      {% for d in subordinates_data %}
+      <tr>
+        <td style="font-weight:600;">{{ d.employee.get_full_name|default:d.employee.username }}</td>
+        <td style="font-weight:700;color:var(--success);">{{ d.sales_total|floatformat:0 }} сом</td>
+        <td>{{ d.sales_count }}</td>
+        <td>{{ d.visits_done }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px;">Нет данных</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── TOP EMPLOYEES (boss) ───────────────────────────────────── -->
+{% if top_employees %}
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 style="font-size:15px;font-weight:700;">🏆 Топ сотрудников (месяц)</h3>
+    <a href="{% url 'employee_report' %}" class="btn btn-secondary btn-sm">Все</a>
+  </div>
+  {% for emp in top_employees %}
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0969da,#218bff);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">
+      {{ forloop.counter }}
+    </div>
+    <div style="flex:1;">
+      <div style="font-weight:600;font-size:13.5px;">{{ emp.employee__first_name }} {{ emp.employee__last_name }}</div>
+      <div style="font-size:11px;color:var(--text2);">{{ emp.cnt }} продаж</div>
+    </div>
+    <div style="font-weight:700;color:var(--success);">{{ emp.total|floatformat:0 }} сом</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── BOTTOM GRID ────────────────────────────────────────────── -->
+<div class="grid-2">
+
+  <!-- Recent sales -->
   <div class="card">
-    <div class="flex justify-between" style="margin-bottom: 16px;">
-      <h3 style="font-size:15px; font-weight:700;">💰 Последние продажи</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:700;">💰 Последние продажи</h3>
       <a href="{% url 'sales_list' %}" class="btn btn-secondary btn-sm">Все</a>
     </div>
     {% if recent_sales %}
@@ -141,9 +208,8 @@
           <td><a href="{% url 'sale_detail' s.pk %}" style="color:var(--accent);">{{ s.pharmacy }}</a></td>
           <td style="font-weight:600;">{{ s.total_amount|floatformat:0 }}</td>
           <td>
-            {% if s.status == 'confirmed' %}<span class="badge badge-green">Подтверждена</span>
-            {% elif s.status == 'pending' %}<span class="badge badge-yellow">В обработке</span>
-            {% elif s.status == 'shipped' %}<span class="badge badge-blue">Отгружена</span>
+            {% if s.status == 'confirmed' %}<span class="badge badge-green">✓</span>
+            {% elif s.status == 'pending' %}<span class="badge badge-yellow">⏳</span>
             {% else %}<span class="badge badge-gray">{{ s.get_status_display }}</span>{% endif %}
           </td>
         </tr>
@@ -152,35 +218,157 @@
       </table>
     </div>
     {% else %}
-    <p class="text-muted" style="text-align:center; padding: 20px;">Нет продаж</p>
+    <p class="text-muted" style="text-align:center;padding:20px;">Нет продаж</p>
     {% endif %}
   </div>
 
-  <!-- OVERDUE VISITS -->
+  <!-- Overdue visits -->
   <div class="card">
-    <div class="flex justify-between" style="margin-bottom: 16px;">
-      <h3 style="font-size:15px; font-weight:700;">📅 Просроченные визиты</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:700;">📅 Просроченные визиты</h3>
       <a href="{% url 'visits_list' %}" class="btn btn-secondary btn-sm">Все</a>
     </div>
     {% if pending_visits %}
     {% for v in pending_visits %}
-    <div style="padding: 9px 0; border-bottom: 1px solid var(--border);">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:14px;">{% if v.visit_type == 'doctor' %}👨‍⚕️{% else %}🏥{% endif %}</span>
-        <div>
-          <div style="font-weight:600; font-size:13px;">
-            {% if v.doctor %}{{ v.doctor.full_name }}{% else %}{{ v.pharmacy.name }}{% endif %}
+    <div style="padding:9px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span>{% if v.visit_type == 'doctor' %}👨‍⚕️{% else %}🏥{% endif %}</span>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;">
+            {% if v.doctor %}{{ v.doctor.full_name }}{% elif v.pharmacy %}{{ v.pharmacy.name }}{% endif %}
           </div>
-          <div style="font-size:11px; color:var(--text2);">{{ v.employee.get_full_name }} • {{ v.planned_date|date:"d.m.Y" }}</div>
+          <div style="font-size:11px;color:var(--text2);">{{ v.employee.get_full_name }} • {{ v.planned_date|date:"d.m.Y" }}</div>
         </div>
-        <a href="{% url 'visit_detail' v.pk %}" class="btn btn-sm btn-secondary" style="margin-left:auto;">→</a>
+        <a href="{% url 'visit_detail' v.pk %}" class="btn btn-sm btn-secondary">→</a>
       </div>
     </div>
     {% endfor %}
     {% else %}
-    <p class="text-muted" style="text-align:center; padding: 20px;">✅ Нет просроченных визитов</p>
+    <p class="text-muted" style="text-align:center;padding:20px;">✅ Нет просроченных</p>
     {% endif %}
   </div>
 
 </div>
+
+<!-- Expiring batches -->
+{% if expiring_batches %}
+<div class="card" style="margin-top:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <h3 style="font-size:15px;font-weight:700;">⚠️ Истекают сроки годности</h3>
+    <a href="{% url 'expiring_report' %}" class="btn btn-secondary btn-sm">Все</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Товар</th><th>Склад</th><th>Кол-во</th><th>Истекает</th></tr></thead>
+      <tbody>
+      {% for b in expiring_batches %}
+      <tr>
+        <td style="font-weight:600;">{{ b.product.name }}</td>
+        <td>{{ b.warehouse.name }}</td>
+        <td>{{ b.quantity }}</td>
+        <td><span class="badge badge-yellow">{{ b.expiry_date }}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = '#6e7681';
+
+const salesLabels  = {{ chart_sales_labels|safe }};
+const salesData    = {{ chart_sales_data|safe }};
+const profitData   = {{ chart_profit_data|safe }};
+const visitStatus  = {{ chart_visits|safe }};
+const visitsLabels = {{ chart_visits_labels|safe }};
+const visitsCnt    = {{ chart_visits_cnt|safe }};
+
+// ── Sales bar chart ──────────────────────────────────────────
+new Chart(document.getElementById('chartSales'), {
+  type: 'bar',
+  data: {
+    labels: salesLabels,
+    datasets: [
+      {
+        label: 'Продажи (сом)',
+        data: salesData,
+        backgroundColor: 'rgba(9,105,218,.7)',
+        borderRadius: 6,
+        borderSkipped: false,
+      },
+      {
+        label: 'Прибыль (сом)',
+        data: profitData,
+        backgroundColor: 'rgba(26,127,55,.6)',
+        borderRadius: 6,
+        borderSkipped: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f0f2f5' },
+           ticks: { callback: v => v.toLocaleString() } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ── Visit status donut ───────────────────────────────────────
+new Chart(document.getElementById('chartVisitStatus'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Выполнен', 'Запланирован', 'Отменён', 'Перенесён'],
+    datasets: [{
+      data: visitStatus,
+      backgroundColor: ['#1a7f37','#0969da','#cf222e','#9a6700'],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } }
+    },
+    cutout: '65%',
+  }
+});
+
+// ── Visits line chart ────────────────────────────────────────
+new Chart(document.getElementById('chartVisitsLine'), {
+  type: 'line',
+  data: {
+    labels: visitsLabels,
+    datasets: [{
+      label: 'Выполненных визитов',
+      data: visitsCnt,
+      borderColor: '#0969da',
+      backgroundColor: 'rgba(9,105,218,.1)',
+      tension: 0.4,
+      fill: true,
+      pointBackgroundColor: '#0969da',
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f0f2f5' },
+           ticks: { stepSize: 1 } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
 {% endblock %}

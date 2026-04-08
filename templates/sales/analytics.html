@@ -1,68 +1,353 @@
 {% extends 'base/base.html' %}
 {% block title %}Аналитика продаж{% endblock %}
 {% block page_title %}Аналитика продаж{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'sales_list' %}" class="btn btn-secondary btn-sm">← Продажи</a>
+{% endblock %}
 
 {% block content %}
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-  <!-- BY EMPLOYEE -->
-  <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">👥 Продажи по сотрудникам</h3>
-    {% if by_employee %}
-    {% for e in by_employee %}
-    <div style="margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-        <span style="font-weight:600;">{{ e.employee__first_name }} {{ e.employee__last_name }}</span>
-        <span style="color:var(--success);font-weight:700;">{{ e.total|floatformat:0 }} сом</span>
-      </div>
-      <div style="background:var(--bg3);border-radius:4px;height:6px;">
-        <div style="height:6px;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:{{ e.total|floatformat:0 }}px;max-width:100%;"></div>
-      </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <p class="text-muted" style="text-align:center;padding:20px;">Нет данных</p>
-    {% endif %}
-  </div>
 
-  <!-- BY PHARMACY -->
-  <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">🏥 Топ аптек по закупкам</h3>
-    {% if by_pharmacy %}
-    {% for p in by_pharmacy %}
-    <div style="margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-        <span style="font-weight:600;">{{ p.pharmacy__name }}</span>
-        <span style="color:var(--success);font-weight:700;">{{ p.total|floatformat:0 }} сом</span>
-      </div>
+<!-- ── STAT CARDS ─────────────────────────────────────────────── -->
+<div class="stats-grid" style="margin-bottom:20px;">
+  <div class="stat-card">
+    <div class="stat-icon blue">💰</div>
+    <div>
+      <div class="stat-label">Общий оборот</div>
+      <div class="stat-value">{{ total_sales|floatformat:0 }}</div>
+      <div class="stat-sub">сом</div>
     </div>
-    {% endfor %}
-    {% else %}
-    <p class="text-muted" style="text-align:center;padding:20px;">Нет данных</p>
-    {% endif %}
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">📈</div>
+    <div>
+      <div class="stat-label">Валовая прибыль</div>
+      <div class="stat-value">{{ gross_profit|floatformat:0 }}</div>
+      <div class="stat-sub">Маржа {{ margin_pct }}%</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon cyan">🧾</div>
+    <div>
+      <div class="stat-label">Кол-во продаж</div>
+      <div class="stat-value">{{ sales_count }}</div>
+      <div class="stat-sub">подтверждённых</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow">📊</div>
+    <div>
+      <div class="stat-label">Средний чек</div>
+      <div class="stat-value">{{ avg_sale|floatformat:0 }}</div>
+      <div class="stat-sub">сом</div>
+    </div>
   </div>
 </div>
 
-<!-- MONTHLY -->
-<div class="card mt-3">
-  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📈 Продажи по месяцам</h3>
-  {% if monthly %}
+<!-- ── MAIN LINE CHART ────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <h3 style="font-size:15px;font-weight:700;">📈 Динамика продаж по месяцам</h3>
+    <div style="display:flex;gap:8px;">
+      <button onclick="setChartType('bar')" id="btnBar" class="btn btn-secondary btn-sm">Столбцы</button>
+      <button onclick="setChartType('line')" id="btnLine" class="btn btn-primary btn-sm">Линия</button>
+    </div>
+  </div>
+  <div style="position:relative;height:280px;">
+    <canvas id="mainChart"></canvas>
+  </div>
+</div>
+
+<!-- ── ROW: employee bar + status donut ──────────────────────── -->
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">👥 Продажи по сотрудникам</h3>
+    <div style="position:relative;height:240px;">
+      <canvas id="empChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">🧾 Статусы сделок</h3>
+    <div style="position:relative;height:240px;display:flex;align-items:center;justify-content:center;">
+      <canvas id="statusChart" style="max-width:240px;max-height:240px;"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── PHARMACY HORIZONTAL BAR ───────────────────────────────── -->
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">🏥 Топ аптек по объёму закупок</h3>
+  <div style="position:relative;height:{% if by_pharmacy %}{{ by_pharmacy|length|add:1 }}{% else %}4{% endif %}00px;max-height:440px;">
+    <canvas id="pharmChart"></canvas>
+  </div>
+</div>
+
+<!-- ── PROFIT BAR ─────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">💹 Выручка / Себестоимость / Прибыль по месяцам</h3>
+  <div style="position:relative;height:240px;">
+    <canvas id="profitChart"></canvas>
+  </div>
+</div>
+
+<!-- ── MONTHLY TABLE ──────────────────────────────────────────── -->
+<div class="card">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:16px;">📋 Таблица по месяцам</h3>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Месяц</th><th>Продажи</th><th>Себестоимость</th><th>Маржа</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Месяц</th>
+          <th>Продажи (сом)</th>
+          <th>Себестоимость</th>
+          <th>Прибыль</th>
+          <th>Маржа %</th>
+          <th>Кол-во</th>
+        </tr>
+      </thead>
       <tbody>
       {% for m in monthly %}
+      {% with profit=m.total|add:"-0" %}
       <tr>
-        <td>{{ m.month|date:"F Y" }}</td>
-        <td style="font-weight:700;color:var(--success);">{{ m.total|floatformat:0 }}</td>
-        <td>{{ m.cost|floatformat:0 }}</td>
-        <td style="color:var(--accent);">{% widthratio m.total|add:"-"|add:m.cost 1 1 %} сом</td>
+        <td style="font-weight:600;">{{ m.month|date:"F Y" }}</td>
+        <td style="font-weight:700;color:var(--accent);">{{ m.total|floatformat:0 }}</td>
+        <td style="color:var(--text2);">{{ m.cost|floatformat:0 }}</td>
+        <td style="font-weight:600;color:var(--success);">
+          {% widthratio m.cost 1 1 as c %}{{ m.total|floatformat:0 }}
+          {# inline calculation not possible, show in chart #}
+        </td>
+        <td>
+          {% if m.total %}
+          {% widthratio m.cost m.total 100 as cpct %}
+          <span style="font-weight:600;color:var(--success);">{{ 100|add:"-"|add:cpct }}%</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ m.cnt }}</td>
       </tr>
+      {% endwith %}
+      {% empty %}
+      <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px;">Нет данных</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}
-  <p class="text-muted" style="text-align:center;padding:20px;">Нет данных о продажах</p>
-  {% endif %}
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = '#6e7681';
+
+const months  = {{ chart_months|safe }};
+const sales   = {{ chart_sales|safe }};
+const cost    = {{ chart_cost|safe }};
+const profit  = {{ chart_profit|safe }};
+const cnt     = {{ chart_cnt|safe }};
+
+// ── Main chart (switchable bar / line) ───────────────────────
+const mainCtx  = document.getElementById('mainChart').getContext('2d');
+let mainChart  = buildMain('line');
+
+function buildMain(type) {
+  if (window._mainChart) window._mainChart.destroy();
+  window._mainChart = new Chart(mainCtx, {
+    type: type,
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'Продажи (сом)',
+          data: sales,
+          borderColor: '#0969da',
+          backgroundColor: type === 'line' ? 'rgba(9,105,218,.12)' : 'rgba(9,105,218,.8)',
+          tension: 0.4, fill: type === 'line',
+          pointBackgroundColor: '#0969da', pointRadius: 4,
+          borderRadius: type === 'bar' ? 6 : 0, borderSkipped: false,
+        },
+        {
+          label: 'Прибыль (сом)',
+          data: profit,
+          borderColor: '#1a7f37',
+          backgroundColor: type === 'line' ? 'rgba(26,127,55,.1)' : 'rgba(26,127,55,.75)',
+          tension: 0.4, fill: type === 'line',
+          pointBackgroundColor: '#1a7f37', pointRadius: 4,
+          borderRadius: type === 'bar' ? 6 : 0, borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} сом`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#f0f2f5' },
+          ticks: { callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+  return window._mainChart;
+}
+
+function setChartType(type) {
+  buildMain(type);
+  document.getElementById('btnBar').className = type === 'bar' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('btnLine').className = type === 'line' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+}
+
+// ── Employee horizontal bar ──────────────────────────────────
+new Chart(document.getElementById('empChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ chart_emp_labels|safe }},
+    datasets: [{
+      label: 'Продажи (сом)',
+      data: {{ chart_emp_data|safe }},
+      backgroundColor: [
+        'rgba(9,105,218,.8)','rgba(26,127,55,.75)','rgba(154,103,0,.7)',
+        'rgba(207,34,46,.7)','rgba(0,150,200,.7)','rgba(100,60,180,.7)',
+        'rgba(200,100,0,.7)','rgba(50,150,50,.7)',
+      ],
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.parsed.x.toLocaleString()} сом` }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: '#f0f2f5' },
+        ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+      },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// ── Status donut ─────────────────────────────────────────────
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Подтверждена', 'В обработке', 'Отгружена', 'Отменена'],
+    datasets: [{
+      data: {{ chart_status|safe }},
+      backgroundColor: ['#1a7f37','#9a6700','#0969da','#cf222e'],
+      borderWidth: 0,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` }
+      }
+    },
+    cutout: '62%',
+  }
+});
+
+// ── Pharmacy horizontal bar ──────────────────────────────────
+new Chart(document.getElementById('pharmChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ chart_ph_labels|safe }},
+    datasets: [{
+      label: 'Объём закупок (сом)',
+      data: {{ chart_ph_data|safe }},
+      backgroundColor: 'rgba(9,105,218,.7)',
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.parsed.x.toLocaleString()} сом` }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: { color: '#f0f2f5' },
+        ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+      },
+      y: { grid: { display: false }, ticks: { font: { size: 12 } } }
+    }
+  }
+});
+
+// ── Profit grouped bar ───────────────────────────────────────
+new Chart(document.getElementById('profitChart'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Выручка',
+        data: sales,
+        backgroundColor: 'rgba(9,105,218,.7)',
+        borderRadius: 4, borderSkipped: false,
+      },
+      {
+        label: 'Себестоимость',
+        data: cost,
+        backgroundColor: 'rgba(207,34,46,.5)',
+        borderRadius: 4, borderSkipped: false,
+      },
+      {
+        label: 'Прибыль',
+        data: profit,
+        backgroundColor: 'rgba(26,127,55,.75)',
+        borderRadius: 4, borderSkipped: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} сом` }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: '#f0f2f5' },
+        ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+      },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
 {% endblock %}

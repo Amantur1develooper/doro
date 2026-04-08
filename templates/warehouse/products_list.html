@@ -6,9 +6,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>💉 Товары / Препараты</h1>
-</div>
 
 <form method="get" class="filter-bar">
   <input type="text" name="q" value="{{ search }}" placeholder="🔍 Поиск по названию...">
@@ -16,40 +13,186 @@
     <option value="">Все категории</option>
     {% for c in categories %}<option value="{{ c.pk }}" {% if request.GET.category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
   </select>
+  <select name="warehouse" onchange="this.form.submit()">
+    <option value="">Все склады</option>
+    {% for w in warehouses %}<option value="{{ w.pk }}" {% if request.GET.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+  </select>
   <button type="submit" class="btn btn-secondary btn-sm">Найти</button>
 </form>
 
 <div class="table-wrap">
-  <table>
+  <table id="productsTable">
     <thead>
-      <tr><th>Препарат</th><th>Категория</th><th>Форма</th><th>Производитель</th><th>Склад</th><th>Цена закупки</th><th>Цена продажи</th><th>Маржа</th><th></th></tr>
+      <tr>
+        <th style="width:32px;"></th>
+        <th>Препарат</th>
+        <th>Категория</th>
+        <th>Форма / Дозировка</th>
+        <th style="text-align:right;">Остаток</th>
+        <th style="text-align:right;">Партий</th>
+        <th style="text-align:right;">Цена закупки</th>
+        <th style="text-align:right;">Цена продажи</th>
+        <th style="text-align:right;">Маржа</th>
+        <th style="text-align:right;">Стоимость остатка</th>
+        <th></th>
+      </tr>
     </thead>
     <tbody>
-      {% for p in products %}
-      <tr>
-        <td>
-          <a href="{% url 'product_detail' p.pk %}" style="color:var(--accent);font-weight:600;">{{ p.name }}</a>
-          <div style="font-size:11px;color:var(--text2);">{{ p.sku }}</div>
-        </td>
-        <td>{{ p.category.name|default:"—" }}</td>
-        <td>{{ p.form|default:"—" }} {{ p.dosage }}</td>
-        <td>{{ p.manufacturer|default:"—" }}</td>
-        <td style="font-weight:600;">
-          {% if p.total_stock > 0 %}<span style="color:var(--success);">{{ p.total_stock }} {{ p.unit }}</span>
-          {% else %}<span style="color:var(--danger);">0</span>{% endif %}
-        </td>
-        <td>{{ p.purchase_price|floatformat:2 }}</td>
-        <td>{{ p.sale_price|floatformat:2 }}</td>
-        <td>
-          {% if p.margin_percent > 0 %}<span style="color:var(--success);">{{ p.margin_percent }}%</span>
-          {% else %}<span class="text-muted">—</span>{% endif %}
-        </td>
-        <td><a href="{% url 'product_detail' p.pk %}" class="btn btn-secondary btn-sm">→</a></td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="9" style="text-align:center;color:var(--text2);padding:30px;">Товаров не найдено</td></tr>
-      {% endfor %}
+    {% for row in products %}
+
+    <!-- ── PRODUCT ROW ── -->
+    <tr class="product-row" onclick="toggleBatches({{ forloop.counter }})" style="cursor:pointer;">
+      <td style="text-align:center;color:var(--text2);font-size:11px;" id="arrow-{{ forloop.counter }}">▶</td>
+      <td>
+        <a href="{% url 'product_detail' row.product.pk %}" onclick="event.stopPropagation();"
+           style="color:var(--accent);font-weight:600;">{{ row.product.name }}</a>
+        <div style="font-size:11px;color:var(--text2);">{{ row.product.sku }}</div>
+      </td>
+      <td>{{ row.product.category.name|default:"—" }}</td>
+      <td style="font-size:12px;color:var(--text2);">{{ row.product.form|default:"" }} {{ row.product.dosage }}</td>
+
+      <!-- Остаток -->
+      <td style="text-align:right;font-weight:700;">
+        {% if row.total_qty > 0 %}
+          <span style="color:var(--success);">{{ row.total_qty }} {{ row.product.unit }}</span>
+        {% else %}
+          <span style="color:var(--danger);">0</span>
+        {% endif %}
+      </td>
+
+      <!-- Кол-во партий -->
+      <td style="text-align:right;">
+        {% if row.batch_count > 0 %}
+          <span class="badge badge-blue">{{ row.batch_count }}</span>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+
+      <!-- Цена закупки -->
+      <td style="text-align:right;font-size:13px;">
+        {% if row.price_varied %}
+          <span style="color:var(--text2);">{{ row.min_price|floatformat:2 }}</span>
+          <span style="color:var(--text2);font-size:10px;"> – </span>
+          <span style="color:var(--text2);">{{ row.max_price|floatformat:2 }}</span>
+          <div style="font-size:10px;color:var(--text2);">ср. {{ row.avg_price|floatformat:2 }}</div>
+        {% else %}
+          {{ row.min_price|floatformat:2 }}
+        {% endif %}
+      </td>
+
+      <!-- Цена продажи -->
+      <td style="text-align:right;font-weight:600;">
+        {{ row.product.sale_price|floatformat:2 }}
+      </td>
+
+      <!-- Маржа -->
+      <td style="text-align:right;">
+        {% if row.margin_pct > 0 %}
+          <span style="color:var(--success);font-weight:700;">{{ row.margin_pct }}%</span>
+          <div style="font-size:11px;color:var(--text2);">+{{ row.margin_avg|floatformat:2 }} сом</div>
+        {% elif row.margin_pct < 0 %}
+          <span style="color:var(--danger);font-weight:700;">{{ row.margin_pct }}%</span>
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+
+      <!-- Стоимость остатка -->
+      <td style="text-align:right;font-size:12px;color:var(--text2);">
+        {% if row.stock_value %}{{ row.stock_value|floatformat:0 }} сом{% else %}—{% endif %}
+      </td>
+
+      <td>
+        <a href="{% url 'product_detail' row.product.pk %}" onclick="event.stopPropagation();"
+           class="btn btn-secondary btn-sm">→</a>
+      </td>
+    </tr>
+
+    <!-- ── BATCHES DETAIL (скрытая строка) ── -->
+    <tr id="batches-{{ forloop.counter }}" style="display:none;background:var(--bg3);">
+      <td></td>
+      <td colspan="10" style="padding:0 0 12px 20px;">
+        {% if row.batches %}
+        <div style="margin-top:8px;">
+          <table style="min-width:0;width:auto;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;">
+            <thead>
+              <tr style="background:var(--bg3);">
+                <th style="padding:7px 14px;font-size:10px;">Серия/Партия</th>
+                <th style="padding:7px 14px;font-size:10px;">Склад</th>
+                <th style="padding:7px 14px;font-size:10px;text-align:right;">Кол-во</th>
+                <th style="padding:7px 14px;font-size:10px;text-align:right;">Цена закупки</th>
+                <th style="padding:7px 14px;font-size:10px;text-align:right;">Цена продажи</th>
+                <th style="padding:7px 14px;font-size:10px;text-align:right;">Маржа</th>
+                <th style="padding:7px 14px;font-size:10px;text-align:right;">Маржа %</th>
+                <th style="padding:7px 14px;font-size:10px;">Срок годности</th>
+                <th style="padding:7px 14px;font-size:10px;">Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for b in row.batches %}
+            {% with sale=row.product.sale_price purchase=b.purchase_price %}
+            <tr style="border-top:1px solid var(--border);">
+              <td style="padding:8px 14px;font-weight:600;font-size:13px;">{{ b.batch_number }}</td>
+              <td style="padding:8px 14px;font-size:12px;">{{ b.warehouse.name }}</td>
+              <td style="padding:8px 14px;text-align:right;font-weight:700;">{{ b.quantity }} {{ row.product.unit }}</td>
+              <td style="padding:8px 14px;text-align:right;font-size:13px;">{{ b.purchase_price|floatformat:2 }}</td>
+              <td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600;">{{ row.product.sale_price|floatformat:2 }}</td>
+              <td style="padding:8px 14px;text-align:right;">
+                {% if sale and purchase %}
+                  {% with m=sale|add:"-0" %}
+                  <span style="color:var(--success);font-weight:600;">
+                    +{{ sale|floatformat:2 }}
+                  </span>
+                  {% endwith %}
+                {% endif %}
+              </td>
+              <td style="padding:8px 14px;text-align:right;">
+                {% if b.margin_pct is not None %}
+                  <span style="background:{% if b.margin_pct >= 30 %}#dcfce7;color:#166534{% elif b.margin_pct >= 15 %}#dbeafe;color:#1d4ed8{% elif b.margin_pct >= 0 %}#fef9c3;color:#854d0e{% else %}#fee2e2;color:#991b1b{% endif %};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">
+                    {{ b.margin_pct }}%
+                  </span>
+                {% else %}—{% endif %}
+              </td>
+              <td style="padding:8px 14px;font-size:12px;">
+                {% if b.is_expired %}<span style="color:var(--danger);">{{ b.expiry_date }} ❌</span>
+                {% elif b.is_expiring %}<span style="color:var(--warning);">{{ b.expiry_date }} ⚠️</span>
+                {% else %}{{ b.expiry_date }}{% endif %}
+              </td>
+              <td style="padding:8px 14px;">
+                {% if b.is_expired %}<span class="badge badge-red">Просрочен</span>
+                {% elif b.is_expiring %}<span class="badge badge-yellow">Истекает</span>
+                {% else %}<span class="badge badge-green">OK</span>{% endif %}
+              </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p style="padding:12px;color:var(--text2);font-size:13px;">Нет партий в наличии</p>
+        {% endif %}
+      </td>
+    </tr>
+
+    {% empty %}
+    <tr><td colspan="11" style="text-align:center;color:var(--text2);padding:30px;">Товаров не найдено</td></tr>
+    {% endfor %}
     </tbody>
   </table>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleBatches(id) {
+  var row  = document.getElementById('batches-' + id);
+  var arr  = document.getElementById('arrow-' + id);
+  var open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : 'table-row';
+  arr.textContent   = open ? '▶' : '▼';
+}
+</script>
 {% endblock %}

@@ -1,5 +1,17 @@
 from django.contrib import admin
-from .models import Sale, SaleItem, SalesPlan, Invoice
+from .models import Sale, SaleItem, SalesPlan, Invoice, LegalEntity
+
+
+@admin.register(LegalEntity)
+class LegalEntityAdmin(admin.ModelAdmin):
+    list_display  = ['name', 'entity_type', 'inn', 'address', 'is_default']
+    list_filter   = ['entity_type', 'is_default']
+    search_fields = ['name', 'inn']
+    fieldsets = [
+        (None, {'fields': ['name', 'entity_type', 'is_default']}),
+        ('Реквизиты', {'fields': ['address', 'inn', 'certificate', 'phone']}),
+        ('Банковские данные', {'fields': ['bank', 'account', 'bik']}),
+    ]
 
 
 class SaleItemInline(admin.TabularInline):

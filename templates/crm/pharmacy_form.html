@@ -20,6 +20,12 @@
       {% endfor %}
     {% endif %}
 
+    {% if is_employee %}
+    <div style="margin-bottom:16px;padding:10px 14px;background:#dbeafe;border-radius:8px;font-size:13px;color:#1d4ed8;">
+      🔒 Аптека будет автоматически привязана к вам и видна только вам и вашему руководителю
+    </div>
+    {% endif %}
+
     <form method="post">
       {% csrf_token %}
 
@@ -52,6 +58,7 @@
           </select>
         </div>
 
+        {% if not is_employee %}
         <div>
           <label class="form-label">Представитель</label>
           <select name="representative" class="form-control">
@@ -64,6 +71,7 @@
             {% endfor %}
           </select>
         </div>
+        {% endif %}
 
         <div>
           <label class="form-label">Контактное лицо</label>

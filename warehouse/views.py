@@ -36,23 +36,70 @@ def warehouse_detail(request, pk):
 
 @login_required
 def products_list(request):
+    from django.db.models import Min, Max, Avg, Count, F, ExpressionWrapper, DecimalField
     products = Product.objects.select_related('category')
     search = request.GET.get('q', '')
     category_id = request.GET.get('category')
+    warehouse_id = request.GET.get('warehouse')
     if search:
         products = products.filter(name__icontains=search)
     if category_id:
         products = products.filter(category_id=category_id)
     categories = ProductCategory.objects.all()
+    warehouses = Warehouse.objects.all()
+    today = date.today()
 
-    # Annotate with total stock
+    # Для каждого товара собираем агрегат по партиям
+    result = []
     for p in products:
-        p.total_stock = Batch.objects.filter(
-            product=p, quantity__gt=0, expiry_date__gte=date.today()
-        ).aggregate(total=Sum('quantity'))['total'] or 0
+        batch_qs = Batch.objects.filter(product=p, quantity__gt=0, expiry_date__gte=today)
+        if warehouse_id:
+            batch_qs = batch_qs.filter(warehouse_id=warehouse_id)
+        agg = batch_qs.aggregate(
+            total_qty=Sum('quantity'),
+            min_price=Min('purchase_price'),
+            max_price=Max('purchase_price'),
+            avg_price=Avg('purchase_price'),
+            batch_count=Count('id'),
+            stock_value=Sum(
+                ExpressionWrapper(F('quantity') * F('purchase_price'), output_field=DecimalField())
+            ),
+        )
+        total_qty   = agg['total_qty'] or 0
+        min_price   = agg['min_price'] or p.purchase_price
+        max_price   = agg['max_price'] or p.purchase_price
+        avg_price   = agg['avg_price'] or p.purchase_price
+        stock_value = agg['stock_value'] or 0
+        batch_count = agg['batch_count'] or 0
+
+        # Маржа от средней закупочной
+        if p.sale_price and p.sale_price > 0:
+            margin_avg = p.sale_price - avg_price
+            margin_pct = round(float(margin_avg) / float(p.sale_price) * 100, 1)
+        else:
+            margin_avg = 0
+            margin_pct = 0
+
+        # Батчи для разворачивания
+        batches = batch_qs.select_related('warehouse').order_by('expiry_date')
+
+        result.append({
+            'product': p,
+            'total_qty': total_qty,
+            'min_price': min_price,
+            'max_price': max_price,
+            'avg_price': avg_price,
+            'stock_value': stock_value,
+            'batch_count': batch_count,
+            'margin_avg': margin_avg,
+            'margin_pct': margin_pct,
+            'batches': batches,
+            'price_varied': min_price != max_price,
+        })
 
     return render(request, 'warehouse/products_list.html', {
-        'products': products, 'categories': categories, 'search': search
+        'products': result, 'categories': categories,
+        'warehouses': warehouses, 'search': search,
     })
 
 

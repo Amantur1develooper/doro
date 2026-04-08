@@ -1,0 +1,252 @@
+{% extends 'base/base.html' %}
+{% block title %}Моя аналитика{% endblock %}
+{% block page_title %}Моя аналитика{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-sm">← Дашборд</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── STAT CARDS ─────────────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue">💰</div>
+    <div>
+      <div class="stat-label">Продажи за месяц</div>
+      <div class="stat-value">{{ month_sales_total|floatformat:0 }}</div>
+      <div class="stat-sub">{{ month_sales_count }} сделок</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon cyan">📅</div>
+    <div>
+      <div class="stat-label">Визитов (месяц)</div>
+      <div class="stat-value">{{ month_v_done }}</div>
+      <div class="stat-sub">из {{ month_v_planned }} запланировано</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue">👨‍⚕️</div>
+    <div>
+      <div class="stat-label">Мои врачи</div>
+      <div class="stat-value">{{ doctors_count }}</div>
+      <div class="stat-sub">в базе</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">🏥</div>
+    <div>
+      <div class="stat-label">Мои аптеки</div>
+      <div class="stat-value">{{ pharmacies_count }}</div>
+      <div class="stat-sub">в базе</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PLAN PROGRESS ─────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:18px;">🎯 Выполнение плана — {{ month_v_done|date:"M Y" }}</h3>
+  <div class="grid-2">
+
+    <!-- Sales plan -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:14px;font-weight:600;">💰 План продаж</span>
+        {% if sales_plan_val > 0 %}
+        <span style="font-size:13px;color:var(--text2);">{{ sales_fact|floatformat:0 }} / {{ sales_plan_val|floatformat:0 }} сом</span>
+        {% else %}
+        <span style="font-size:12px;color:var(--text2);">план не задан</span>
+        {% endif %}
+      </div>
+      {% if sales_plan_val > 0 %}
+      <div style="height:12px;background:var(--bg3);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;width:{{ sales_pct }}%;background:{% if sales_pct >= 100 %}var(--success){% elif sales_pct >= 70 %}var(--accent){% else %}var(--warning){% endif %};border-radius:99px;transition:width .6s ease;"></div>
+      </div>
+      <div style="font-size:12px;margin-top:5px;font-weight:600;color:{% if sales_pct >= 100 %}var(--success){% elif sales_pct >= 70 %}var(--accent){% else %}var(--warning){% endif %}">
+        {{ sales_pct }}% выполнено
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Visits plan -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:14px;font-weight:600;">📅 План визитов</span>
+        {% if visits_plan_val > 0 %}
+        <span style="font-size:13px;color:var(--text2);">{{ month_v_done }} / {{ visits_plan_val }}</span>
+        {% else %}
+        <span style="font-size:12px;color:var(--text2);">план не задан</span>
+        {% endif %}
+      </div>
+      {% if visits_plan_val > 0 %}
+      <div style="height:12px;background:var(--bg3);border-radius:99px;overflow:hidden;">
+        <div style="height:100%;width:{{ visits_pct }}%;background:{% if visits_pct >= 100 %}var(--success){% elif visits_pct >= 70 %}var(--accent){% else %}var(--warning){% endif %};border-radius:99px;transition:width .6s ease;"></div>
+      </div>
+      <div style="font-size:12px;margin-top:5px;font-weight:600;color:{% if visits_pct >= 100 %}var(--success){% elif visits_pct >= 70 %}var(--accent){% else %}var(--warning){% endif %}">
+        {{ visits_pct }}% выполнено
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<!-- ── CHARTS ────────────────────────────────────────────────── -->
+<div class="grid-2" style="margin-bottom:20px;">
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;">💰 Мои продажи (6 мес.)</h3>
+    <div style="position:relative;height:200px;">
+      <canvas id="mySalesChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;">📅 Статусы визитов (год)</h3>
+    <div style="position:relative;height:200px;display:flex;align-items:center;justify-content:center;">
+      <canvas id="myVisitDonut" style="max-width:200px;max-height:200px;"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;">📈 Мои визиты по месяцам</h3>
+  <div style="position:relative;height:180px;">
+    <canvas id="myVisitsLine"></canvas>
+  </div>
+</div>
+
+<!-- ── RECENT ─────────────────────────────────────────────────── -->
+<div class="grid-2">
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:700;">📅 Мои последние визиты</h3>
+      <a href="{% url 'visits_list' %}" class="btn btn-secondary btn-sm">Все</a>
+    </div>
+    {% if recent_visits %}
+    {% for v in recent_visits %}
+    <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span>{% if v.visit_type == 'doctor' %}👨‍⚕️{% else %}🏥{% endif %}</span>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;">
+            {% if v.doctor %}{{ v.doctor.full_name }}{% elif v.pharmacy %}{{ v.pharmacy.name }}{% endif %}
+          </div>
+          <div style="font-size:11px;color:var(--text2);">{{ v.planned_date|date:"d.m.Y H:i" }}</div>
+        </div>
+        {% if v.status == 'done' %}<span class="badge badge-green">✓</span>
+        {% elif v.status == 'planned' %}<span class="badge badge-blue">→</span>
+        {% elif v.status == 'cancelled' %}<span class="badge badge-red">✗</span>
+        {% else %}<span class="badge badge-yellow">⏳</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted" style="text-align:center;padding:20px;">Нет визитов</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:700;">💰 Мои последние продажи</h3>
+      <a href="{% url 'sales_list' %}" class="btn btn-secondary btn-sm">Все</a>
+    </div>
+    {% if recent_sales %}
+    {% for s in recent_sales %}
+    <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;">{{ s.pharmacy }}</div>
+          <div style="font-size:11px;color:var(--text2);">{{ s.date }}</div>
+        </div>
+        <div style="font-weight:700;font-size:13px;color:var(--success);">{{ s.total_amount|floatformat:0 }}</div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted" style="text-align:center;padding:20px;">Нет продаж</p>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = '#6e7681';
+
+// Sales bar
+new Chart(document.getElementById('mySalesChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ chart_sales_labels|safe }},
+    datasets: [{
+      label: 'Продажи (сом)',
+      data: {{ chart_sales_data|safe }},
+      backgroundColor: 'rgba(9,105,218,.75)',
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f0f2f5' },
+           ticks: { callback: v => v.toLocaleString() } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// Visit status donut
+new Chart(document.getElementById('myVisitDonut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Выполнен', 'Запланирован', 'Отменён', 'Перенесён'],
+    datasets: [{
+      data: {{ chart_vstatus|safe }},
+      backgroundColor: ['#1a7f37','#0969da','#cf222e','#9a6700'],
+      borderWidth: 0,
+      hoverOffset: 5,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { padding: 10, boxWidth: 12 } } },
+    cutout: '60%',
+  }
+});
+
+// Visits line
+new Chart(document.getElementById('myVisitsLine'), {
+  type: 'line',
+  data: {
+    labels: {{ chart_visits_labels|safe }},
+    datasets: [{
+      label: 'Визитов выполнено',
+      data: {{ chart_visits_cnt|safe }},
+      borderColor: '#1a7f37',
+      backgroundColor: 'rgba(26,127,55,.1)',
+      tension: 0.4,
+      fill: true,
+      pointBackgroundColor: '#1a7f37',
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f0f2f5' }, ticks: { stepSize: 1 } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
+{% endblock %}

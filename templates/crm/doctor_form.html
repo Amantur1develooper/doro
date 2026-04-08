@@ -6,31 +6,38 @@
 {% endblock %}
 
 {% block content %}
-<div style="max-width: 700px;">
+<div style="max-width:700px;">
   <div class="card">
-    <h2 style="font-size:16px;font-weight:700;margin-bottom:24px;">👨‍⚕️ Новый врач</h2>
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:6px;">👨‍⚕️ Новый врач</h2>
+
+    {% if is_employee %}
+    <div style="margin-bottom:20px;padding:10px 14px;background:#dbeafe;border-radius:8px;font-size:13px;color:#1d4ed8;">
+      🔒 Врач будет автоматически привязан к вам и виден только вам и вашему руководителю
+    </div>
+    {% endif %}
+
     <form method="post">
       {% csrf_token %}
-      <div class="form-row">
-        <div class="form-group">
+      <div class="grid-2">
+        <div>
           <label>ФИО *</label>
           <input type="text" name="full_name" required placeholder="Иванов Иван Иванович">
         </div>
-        <div class="form-group">
+        <div>
           <label>Специализация *</label>
           <input type="text" name="specialty" required placeholder="Терапевт, кардиолог...">
         </div>
       </div>
-      <div class="form-group">
+      <div style="margin-bottom:14px;">
         <label>Медучреждение</label>
         <input type="text" name="institution" placeholder="Городская больница №1">
       </div>
-      <div class="form-row">
-        <div class="form-group">
+      <div class="grid-2">
+        <div>
           <label>Телефон</label>
           <input type="text" name="phone" placeholder="+996 XXX XXXXXX">
         </div>
-        <div class="form-group">
+        <div>
           <label>Регион</label>
           <select name="region">
             <option value="">— Выберите регион —</option>
@@ -38,22 +45,26 @@
           </select>
         </div>
       </div>
-      <div class="form-group">
+      <div style="margin-bottom:14px;">
         <label>Адрес</label>
         <input type="text" name="address" placeholder="Город, улица, дом">
       </div>
-      <div class="form-group">
-        <label>Представитель</label>
+
+      {% if not is_employee %}
+      <div style="margin-bottom:14px;">
+        <label>Представитель (сотрудник)</label>
         <select name="representative">
-          <option value="">— Выберите представителя —</option>
+          <option value="">— Не назначен —</option>
           {% for r in reps %}<option value="{{ r.pk }}">{{ r.get_full_name }}</option>{% endfor %}
         </select>
       </div>
-      <div class="form-group">
+      {% endif %}
+
+      <div style="margin-bottom:14px;">
         <label>Заметки</label>
         <textarea name="notes" placeholder="Дополнительная информация..."></textarea>
       </div>
-      <div style="display:flex; gap:10px; margin-top:8px;">
+      <div style="display:flex;gap:10px;margin-top:8px;">
         <button type="submit" class="btn btn-primary">💾 Сохранить</button>
         <a href="{% url 'doctors_list' %}" class="btn btn-secondary">Отмена</a>
       </div>
