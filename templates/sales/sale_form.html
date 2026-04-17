@@ -6,38 +6,295 @@
 {% endblock %}
 
 {% block content %}
-<div style="max-width:960px;">
-<div class="card">
+<style>
+/* ── Мобильная адаптация формы продажи ── */
+.sf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.sf-grid .full { grid-column: 1 / -1; }
 
-  <h2 style="font-size:16px;font-weight:700;margin-bottom:20px;">💰 Оформление продажи</h2>
+.sf-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.sf-control {
+  width: 100%;
+  min-height: 48px;
+  font-size: 15px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color .15s;
+}
+.sf-control:focus { border-color: var(--accent); }
+.sf-control.error { border-color: #ef4444; background: #fff5f5; }
+.sf-control.ok    { border-color: #22c55e; }
 
-  <form method="post" id="saleForm" enctype="multipart/form-data" onsubmit="return buildItemsJson()">
-    {% csrf_token %}
+/* ── Карточка товара ── */
+.item-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.item-card.selected { border-color: var(--accent); background: #f0f7ff; }
+.item-card.has-error { border-color: #ef4444; }
 
-    <!-- ── Основные поля ─────────────────────────────────────── -->
-    <div class="grid-3" style="margin-bottom:16px;">
-      <div>
-        <label>Аптека *</label>
-        <select name="pharmacy" required>
-          <option value="">Выберите аптеку...</option>
+.item-search-wrap { position: relative; margin-bottom: 10px; }
+.item-search-input {
+  width: 100%;
+  min-height: 52px;
+  font-size: 15px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px 10px 42px;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+}
+.item-search-input:focus { border-color: var(--accent); }
+.item-search-icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  pointer-events: none;
+}
+.item-dropdown {
+  display: none;
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(100% + 4px);
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  z-index: 300;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+.dd-item {
+  padding: 12px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dd-item:last-child { border-bottom: none; }
+.dd-item:active, .dd-item.hover { background: #f0f7ff; }
+.dd-item-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.dd-item-sub  { font-size: 11px; color: var(--text2); }
+.dd-item-right { text-align: right; flex-shrink: 0; }
+
+/* ── Поля кол-во / цена в одну строку ── */
+.item-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+.item-row2-label {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.item-num-input {
+  width: 100%;
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  text-align: center;
+}
+.item-num-input:focus { border-color: var(--accent); }
+
+.item-amount {
+  text-align: right;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 8px 0;
+}
+
+.item-remove {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+.item-remove:active { color: #ef4444; }
+
+.item-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px 3px 8px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+}
+
+/* ── Чеклист ── */
+.checklist { list-style: none; padding: 0; margin: 0; }
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--text2);
+  transition: color .2s;
+}
+.checklist li.done { color: #16a34a; }
+.checklist li.fail { color: #dc2626; font-weight: 600; }
+.check-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+
+/* ── Итог / оплата ── */
+.totals-box {
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.totals-row.big { font-size: 18px; font-weight: 800; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 6px; }
+
+/* ── Кнопка отправки ── */
+.sf-submit {
+  width: 100%;
+  min-height: 56px;
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  margin-top: 16px;
+  letter-spacing: .3px;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity .15s;
+}
+.sf-submit:active { opacity: .85; }
+.sf-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Предупреждения ── */
+.sf-warn {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+.sf-warn.yellow { background: #fefce8; border: 1px solid #fde047; color: #854d0e; }
+.sf-warn.red    { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.sf-warn.blue   { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
+
+/* ── Мобильный @media ── */
+@media (max-width: 600px) {
+  .sf-grid { grid-template-columns: 1fr; }
+  .sf-grid .full { grid-column: 1; }
+  .item-row2 { grid-template-columns: 1fr 1fr; }
+  .item-row2 .amount-col { grid-column: 1 / -1; text-align: right; }
+}
+</style>
+
+<div style="max-width:680px;margin:0 auto;">
+
+{% if messages %}
+  {% for msg in messages %}
+  <div class="sf-warn {% if msg.tags == 'error' %}red{% else %}blue{% endif %}">
+    <span>{% if msg.tags == 'error' %}⚠️{% else %}✅{% endif %}</span>
+    <span>{{ msg }}</span>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<form method="post" id="saleForm" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="items_json" id="itemsJson">
+
+  <!-- ══ БЛОК 1: Основные поля ══════════════════════════════════ -->
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">📋 Детали продажи</div>
+
+    <div class="sf-grid">
+      <div class="full">
+        <label class="sf-label">Аптека *</label>
+        {% if not pharmacies %}
+        <div class="sf-warn yellow">
+          <span>⚠️</span>
+          <div><strong>Нет доступных аптек.</strong> Сначала добавьте аптеку в разделе <a href="{% url 'pharmacy_create' %}" style="color:inherit;text-decoration:underline;">CRM → Аптеки</a>.</div>
+        </div>
+        {% endif %}
+        <select name="pharmacy" id="pharmacySelect" class="sf-control" required onchange="updateChecklist()">
+          <option value="">— Выберите аптеку —</option>
           {% for ph in pharmacies %}<option value="{{ ph.pk }}">{{ ph.name }}</option>{% endfor %}
         </select>
       </div>
+
       <div>
-        <label>Склад *</label>
-        <select name="warehouse" id="warehouseSelect" required onchange="filterBatchesByWarehouse()">
-          <option value="">Выберите склад...</option>
+        <label class="sf-label">Склад *</label>
+        <select name="warehouse" id="warehouseSelect" class="sf-control" required onchange="filterBatchesByWarehouse(); updateChecklist();">
+          <option value="">— Выберите склад —</option>
           {% for w in warehouses %}<option value="{{ w.pk }}">{{ w.name }}</option>{% endfor %}
         </select>
       </div>
+
       <div>
-        <label>Дата продажи</label>
-        <input type="date" name="date" value="{% now 'Y-m-d' %}">
+        <label class="sf-label">Дата продажи</label>
+        <input type="date" name="date" class="sf-control" value="{% now 'Y-m-d' %}">
       </div>
+
       {% if user.role != 'med_rep' %}
-      <div>
-        <label>Представитель</label>
-        <select name="employee">
+      <div class="full">
+        <label class="sf-label">Представитель</label>
+        <select name="employee" class="sf-control">
           <option value="">— Текущий пользователь —</option>
           {% for emp in employees %}
           <option value="{{ emp.pk }}" {% if emp == user %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }}</option>
@@ -45,284 +302,383 @@
         </select>
       </div>
       {% endif %}
-      <div>
-        <label>📄 Юр. лицо (Продавец) *</label>
-        <select name="legal_entity" required>
+
+      <div class="full">
+        <label class="sf-label">Юр. лицо (Продавец) *</label>
+        {% if not legal_entities %}
+        <div class="sf-warn red">
+          <span>🚫</span>
+          <div><strong>Юридические лица не настроены.</strong> Без этого оформить продажу невозможно. Попросите администратора добавить юр. лицо в <a href="/admin/sales/legalentity/add/" target="_blank" style="color:inherit;text-decoration:underline;">Admin → Юр. лица</a>.</div>
+        </div>
+        {% endif %}
+        <select name="legal_entity" id="legalEntitySelect" class="sf-control" required onchange="updateChecklist()">
           <option value="">— Выберите продавца —</option>
           {% for le in legal_entities %}
-          <option value="{{ le.pk }}" {% if le == default_entity %}selected{% endif %}>
-            {{ le.name }}
-          </option>
+          <option value="{{ le.pk }}" {% if le == default_entity %}selected{% endif %}>{{ le.name }}</option>
           {% endfor %}
         </select>
-        {% if not legal_entities %}
-        <div style="font-size:11px;color:var(--danger);margin-top:4px;">⚠️ Сначала добавьте юр. лицо в <a href="/admin/sales/legalentity/add/" target="_blank">Admin → Юр. лица</a></div>
-        {% endif %}
       </div>
+
       <div>
-        <label>🔢 Номер накладной</label>
-        <input type="text" name="invoice_number" placeholder="Авто (оставьте пустым)">
-        <div style="font-size:11px;color:var(--text2);margin-top:3px;">Оставьте пустым — номер присвоится автоматически</div>
+        <label class="sf-label">Номер накладной</label>
+        <input type="text" name="invoice_number" class="sf-control" placeholder="Авто">
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Оставьте пустым — присвоится автоматически</div>
       </div>
+
       <div>
-        <label>Заметки</label>
-        <input type="text" name="notes" placeholder="Дополнительная информация...">
+        <label class="sf-label">Заметки</label>
+        <input type="text" name="notes" class="sf-control" placeholder="Необязательно">
       </div>
     </div>
+  </div>
 
-    <!-- ── Оплата ─────────────────────────────────────────────── -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+  <!-- ══ БЛОК 2: Товары ══════════════════════════════════════════ -->
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">📦 Товары</div>
+      <div style="font-size:13px;color:var(--text2);">Итого: <strong id="grandTotal" style="font-size:17px;color:var(--text);font-weight:800;">0</strong> <span style="font-size:12px;">сом</span></div>
+    </div>
+
+    {% if not batches_json or batches_json == '[]' %}
+    <div class="sf-warn yellow">
+      <span>📭</span>
       <div>
-        <label>💵 Оплачено сейчас (сом)</label>
-        <input type="number" name="paid_amount" id="paidAmount" step="0.01" min="0" value="0" oninput="updateDebt()">
-        <div style="font-size:11px;color:var(--text2);margin-top:3px;">Сколько оплатил при получении</div>
+        <strong>На складе нет товаров с остатком.</strong><br>
+        Чтобы продать товар, нужно:
+        <ol style="margin:6px 0 0 0;padding-left:18px;line-height:1.8;">
+          <li>Перейти в <a href="{% url 'batch_create' %}" style="color:inherit;text-decoration:underline;">Склад → Добавить партию</a></li>
+          <li>Указать товар, серию, количество, цену и склад</li>
+          <li>Вернуться и оформить продажу</li>
+        </ol>
       </div>
-      <div>
-        <label>📋 Долг после продажи</label>
-        <div id="debtPreview" style="font-size:20px;font-weight:700;color:var(--danger);padding:8px 0;">— сом</div>
-        <div style="font-size:11px;color:var(--text2);">Итого − Оплачено</div>
-      </div>
     </div>
+    {% endif %}
 
-    <!-- ── Чек / Фото ─────────────────────────────────────────── -->
-    <div style="margin-bottom:16px;">
-      <label>📎 Чек / Фото документа</label>
-      <input type="file" name="receipt" accept="image/*,.pdf">
-      <div style="font-size:11px;color:var(--text2);margin-top:3px;">jpg, png, pdf</div>
-    </div>
+    <div id="itemsContainer"></div>
 
-    <!-- ── Товарные позиции ───────────────────────────────────── -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <h3 style="font-size:15px;font-weight:700;">📦 Товарные позиции</h3>
-      <div style="font-size:13px;color:var(--text2);">Итого: <strong id="grandTotal" style="font-size:16px;color:var(--text);">0</strong> сом</div>
-    </div>
-
-    <div style="overflow-x:auto;margin-bottom:12px;">
-      <table style="width:100%;border-collapse:collapse;min-width:600px;" id="itemsTable">
-        <thead>
-          <tr style="background:var(--bg3);">
-            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Товар / Партия</th>
-            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid var(--border);font-size:11px;width:80px;">Остаток</th>
-            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid var(--border);font-size:11px;width:130px;">Цена продажи</th>
-            <th style="padding:8px 12px;text-align:center;border-bottom:2px solid var(--border);font-size:11px;width:100px;">Кол-во</th>
-            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);font-size:11px;width:120px;">Сумма</th>
-            <th style="border-bottom:2px solid var(--border);width:36px;"></th>
-          </tr>
-        </thead>
-        <tbody id="itemsBody"></tbody>
-      </table>
-    </div>
-
-    <button type="button" onclick="addRow()"
-            style="background:none;border:1px dashed var(--accent);color:var(--accent);padding:6px 18px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;">
-      + Добавить строку
+    <button type="button" id="addRowBtn" onclick="addItem()"
+      style="width:100%;min-height:48px;background:none;border:2px dashed var(--accent);color:var(--accent);
+             border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;margin-top:4px;
+             -webkit-tap-highlight-color:transparent;">
+      + Добавить товар
     </button>
+  </div>
 
-    <input type="hidden" name="items_json" id="itemsJson">
+  <!-- ══ БЛОК 3: Оплата ══════════════════════════════════════════ -->
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">💵 Оплата</div>
 
-    <div id="formError" style="display:none;padding:10px 14px;border-radius:8px;background:#fee2e2;color:#991b1b;margin-top:12px;font-size:13px;"></div>
-
-    <div style="display:flex;gap:10px;margin-top:20px;">
-      <button type="submit" class="btn btn-primary">💾 Оформить продажу</button>
-      <a href="{% url 'sales_list' %}" class="btn btn-secondary">Отмена</a>
+    <div class="sf-grid">
+      <div>
+        <label class="sf-label">Оплачено сейчас (сом)</label>
+        <input type="number" name="paid_amount" id="paidAmount" class="sf-control"
+               step="0.01" min="0" value="0" oninput="updateDebt()"
+               style="font-size:18px;font-weight:700;text-align:center;">
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Сколько аптека заплатила сейчас</div>
+      </div>
+      <div>
+        <label class="sf-label">Остаток долга</label>
+        <div id="debtPreview"
+             style="min-height:48px;display:flex;align-items:center;justify-content:center;
+                    font-size:22px;font-weight:800;color:var(--danger);
+                    background:#fff5f5;border-radius:10px;border:1.5px solid #fca5a5;">
+          — сом
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Итого − Оплачено</div>
+      </div>
     </div>
 
-  </form>
-</div>
+    <div style="margin-top:14px;">
+      <label class="sf-label">Прикрепить чек / фото</label>
+      <input type="file" name="receipt" accept="image/*,.pdf" class="sf-control"
+             style="padding:12px 14px;font-size:14px;">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">jpg, png, pdf — необязательно</div>
+    </div>
+  </div>
+
+  <!-- ══ БЛОК 4: Чеклист + кнопка ═══════════════════════════════ -->
+  <div class="card" style="margin-bottom:20px;">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">✅ Готовность к отправке</div>
+    <ul class="checklist" id="checklist">
+      <li id="chk-pharmacy"><span class="check-icon">○</span> Выберите аптеку</li>
+      <li id="chk-warehouse"><span class="check-icon">○</span> Выберите склад</li>
+      <li id="chk-legal"><span class="check-icon">○</span> Выберите юридическое лицо (продавца)</li>
+      <li id="chk-items"><span class="check-icon">○</span> Добавьте хотя бы один товар</li>
+      <li id="chk-qty"><span class="check-icon">○</span> Укажите количество для каждого товара</li>
+    </ul>
+
+    <div id="submitError" style="display:none;margin-top:12px;" class="sf-warn red">
+      <span>⚠️</span><span id="submitErrorText"></span>
+    </div>
+
+    <button type="button" id="submitBtn" class="sf-submit" onclick="submitSale()">
+      💾 Оформить продажу
+    </button>
+    <a href="{% url 'sales_list' %}" class="btn btn-secondary"
+       style="display:block;width:100%;text-align:center;margin-top:10px;min-height:48px;line-height:48px;box-sizing:border-box;border-radius:14px;">
+      Отмена
+    </a>
+  </div>
+
+</form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// ── Данные о партиях из Django ────────────────────────────────
 const ALL_BATCHES = {{ batches_json|safe }};
-
 let activeBatches = [...ALL_BATCHES];
+let itemCount = 0;
 
-// Фильтр по складу
+/* ── Фильтр по складу ────────────────────────────────────────── */
 function filterBatchesByWarehouse() {
   const wid = parseInt(document.getElementById('warehouseSelect').value) || 0;
   activeBatches = wid ? ALL_BATCHES.filter(b => b.warehouse === wid) : [...ALL_BATCHES];
-  // Сбросить все строки кроме первой
-  const rows = document.querySelectorAll('.item-row');
-  rows.forEach(r => clearRow(r));
+  // Очистить все выбранные товары
+  document.querySelectorAll('.item-card').forEach(clearCard);
 }
 
-function clearRow(row) {
-  row.querySelector('.batch-id-input').value = '';
-  row.querySelector('.search-input').value   = '';
-  row.querySelector('.stock-badge').textContent = '—';
-  row.querySelector('.stock-badge').style.color = 'var(--text2)';
-  row.querySelector('.price-input').value   = '';
-  row.querySelector('.qty-input').value     = '';
-  row.querySelector('.row-amount').textContent = '—';
-  hideDropdown(row);
+function clearCard(card) {
+  card.querySelector('.batch-id-input').value = '';
+  card.querySelector('.item-search-input').value = '';
+  card.querySelector('[data-role="badge"]').style.display = 'none';
+  card.querySelector('[data-role="row2"]').style.display = 'none';
+  card.classList.remove('selected','has-error');
+  hideDropdown(card);
   calcTotal();
 }
 
-// ── Строка таблицы ────────────────────────────────────────────
-function makeRow() {
-  const tr = document.createElement('tr');
-  tr.className = 'item-row';
-  tr.style.borderBottom = '1px solid var(--border)';
-  tr.innerHTML = `
-    <td style="padding:6px 10px;position:relative;">
-      <input type="hidden" class="batch-id-input">
-      <input type="text" class="search-input"
-        placeholder="🔍 Введите название товара..."
-        autocomplete="off"
-        style="width:100%;min-height:36px;font-size:13px;border:1px solid var(--border);border-radius:7px;padding:6px 10px;background:#fff;outline:none;">
-      <div class="search-dropdown" style="
-        display:none;position:absolute;left:10px;right:10px;top:calc(100% - 4px);
-        background:#fff;border:1px solid var(--border);border-top:none;
-        border-radius:0 0 8px 8px;z-index:200;max-height:220px;overflow-y:auto;
-        box-shadow:0 8px 24px rgba(0,0,0,.12);">
+/* ── Создать карточку товара ──────────────────────────────────── */
+function addItem() {
+  itemCount++;
+  const id = 'item-' + itemCount;
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  card.id = id;
+  card.innerHTML = `
+    <button type="button" class="item-remove" onclick="removeItem('${id}')" title="Удалить строку">✕</button>
+    <input type="hidden" class="batch-id-input">
+
+    <!-- Строка поиска -->
+    <div class="item-search-wrap">
+      <span class="item-search-icon">🔍</span>
+      <input type="text" class="item-search-input"
+        placeholder="Введите название препарата..."
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        inputmode="search">
+      <div class="item-dropdown"></div>
+    </div>
+
+    <!-- Бейдж выбранного товара -->
+    <div data-role="badge" style="display:none;margin-bottom:10px;"></div>
+
+    <!-- Кол-во / Цена / Сумма -->
+    <div data-role="row2" class="item-row2" style="display:none;">
+      <div>
+        <div class="item-row2-label">Кол-во (шт)</div>
+        <input type="number" class="item-num-input qty-input" min="1" step="1" placeholder="0"
+               inputmode="numeric">
       </div>
-    </td>
-    <td style="padding:6px 10px;text-align:center;">
-      <span class="stock-badge" style="font-size:12px;color:var(--text2);">—</span>
-    </td>
-    <td style="padding:6px 10px;">
-      <input type="number" class="price-input" step="0.01" min="0" placeholder="0.00"
-        style="width:100%;min-height:36px;font-size:13px;border:1px solid var(--border);border-radius:7px;padding:6px 10px;background:#fff;outline:none;">
-    </td>
-    <td style="padding:6px 10px;">
-      <input type="number" class="qty-input" step="1" min="1" placeholder="0"
-        style="width:100%;min-height:36px;font-size:13px;border:1px solid var(--border);border-radius:7px;padding:6px 10px;background:#fff;outline:none;">
-    </td>
-    <td style="padding:6px 10px;text-align:right;font-weight:700;font-size:13px;">
-      <span class="row-amount" style="color:var(--text2);">—</span>
-    </td>
-    <td style="padding:6px 6px;text-align:center;">
-      <button type="button" class="remove-row"
-        style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;line-height:1;">✕</button>
-    </td>
+      <div>
+        <div class="item-row2-label">Цена (сом)</div>
+        <input type="number" class="item-num-input price-input" min="0" step="0.01" placeholder="0.00"
+               inputmode="decimal">
+      </div>
+      <div class="amount-col">
+        <div class="item-row2-label">Сумма</div>
+        <div class="item-amount" data-role="amount">—</div>
+      </div>
+    </div>
   `;
-  return tr;
+
+  document.getElementById('itemsContainer').appendChild(card);
+  attachCardListeners(card);
+  card.querySelector('.item-search-input').focus();
+  updateChecklist();
 }
 
-function attachListeners(tr) {
-  const searchInput = tr.querySelector('.search-input');
-  const dropdown    = tr.querySelector('.search-dropdown');
-  const batchId     = tr.querySelector('.batch-id-input');
-  const stockBadge  = tr.querySelector('.stock-badge');
-  const priceInput  = tr.querySelector('.price-input');
-  const qtyInput    = tr.querySelector('.qty-input');
+function removeItem(id) {
+  const card = document.getElementById(id);
+  if (card) {
+    card.remove();
+    calcTotal();
+    updateChecklist();
+  }
+}
+
+/* ── Слушатели событий для карточки ──────────────────────────── */
+function attachCardListeners(card) {
+  const searchInput = card.querySelector('.item-search-input');
+  const dropdown    = card.querySelector('.item-dropdown');
+  const batchId     = card.querySelector('.batch-id-input');
+  const qtyInput    = card.querySelector('.qty-input');
+  const priceInput  = card.querySelector('.price-input');
 
   // Поиск при вводе
   searchInput.addEventListener('input', function() {
     const q = this.value.trim().toLowerCase();
     batchId.value = '';
-    if (q.length < 1) { hideDropdown(tr); return; }
+    card.classList.remove('selected');
+    card.querySelector('[data-role="badge"]').style.display = 'none';
+    card.querySelector('[data-role="row2"]').style.display = 'none';
+    updateChecklist();
 
+    if (q.length < 1) { hideDropdown(card); return; }
     const matches = activeBatches.filter(b =>
       b.name.toLowerCase().includes(q) ||
       b.sku.toLowerCase().includes(q)  ||
       b.batch_num.toLowerCase().includes(q)
-    ).slice(0, 30);
-
-    renderDropdown(tr, matches);
+    ).slice(0, 40);
+    renderDropdown(card, matches, q);
   });
 
-  // Фокус — показать все если пусто
+  // Тап/фокус — показать список
   searchInput.addEventListener('focus', function() {
-    if (!batchId.value) {
-      const q = this.value.trim().toLowerCase();
-      const matches = activeBatches.filter(b =>
-        !q || b.name.toLowerCase().includes(q) ||
-        b.sku.toLowerCase().includes(q)
-      ).slice(0, 30);
-      renderDropdown(tr, matches);
-    }
+    if (batchId.value) return;
+    const q = this.value.trim().toLowerCase();
+    const pool = activeBatches;
+    const matches = q
+      ? pool.filter(b => b.name.toLowerCase().includes(q) || b.sku.toLowerCase().includes(q)).slice(0,40)
+      : pool.slice(0, 40);
+    renderDropdown(card, matches, q);
   });
 
-  // Скрыть при потере фокуса (с задержкой для клика)
-  searchInput.addEventListener('blur', () => setTimeout(() => hideDropdown(tr), 180));
+  // Скрыть при потере фокуса
+  searchInput.addEventListener('blur', () => setTimeout(() => hideDropdown(card), 200));
 
-  // Пересчёт при изменении цены/количества
-  priceInput.addEventListener('input', () => calcRow(tr));
-  qtyInput.addEventListener('input',   () => calcRow(tr));
-
-  // Удалить строку
-  tr.querySelector('.remove-row').addEventListener('click', () => {
-    if (document.querySelectorAll('.item-row').length > 1) { tr.remove(); calcTotal(); }
-  });
+  // Пересчёт
+  qtyInput.addEventListener('input',   () => { calcRow(card); updateChecklist(); });
+  priceInput.addEventListener('input', () => { calcRow(card); updateChecklist(); });
 }
 
-function renderDropdown(tr, matches) {
-  const dropdown = tr.querySelector('.search-dropdown');
+/* ── Отрисовать дропдаун ─────────────────────────────────────── */
+function renderDropdown(card, matches, q) {
+  const dropdown = card.querySelector('.item-dropdown');
+  const wid = parseInt(document.getElementById('warehouseSelect').value) || 0;
+
+  if (!activeBatches.length) {
+    dropdown.innerHTML = `
+      <div style="padding:16px;color:#854d0e;font-size:13px;line-height:1.6;">
+        <strong>📭 На складе нет товаров.</strong><br>
+        ${wid ? 'На выбранном складе остатки равны нулю.' : 'Выберите склад или добавьте партию на склад.'}
+      </div>`;
+    dropdown.style.display = 'block';
+    return;
+  }
+
   if (!matches.length) {
-    dropdown.innerHTML = '<div style="padding:10px 14px;color:var(--text2);font-size:13px;">Ничего не найдено</div>';
+    const hint = q ? `Препарат <strong>"${q}"</strong> не найден.` : 'Начните вводить название.';
+    dropdown.innerHTML = `
+      <div style="padding:14px 16px;font-size:13px;line-height:1.7;color:var(--text2);">
+        ${hint}<br>
+        <span style="font-size:12px;">Проверьте правильность написания или выберите другой склад.</span>
+      </div>`;
     dropdown.style.display = 'block';
     return;
   }
 
   dropdown.innerHTML = matches.map(b => {
+    const isOut = b.qty <= 0;
     const stockColor = b.qty > 10 ? '#166534' : b.qty > 0 ? '#854d0e' : '#991b1b';
-    const stockBg    = b.qty > 10 ? '#dcfce7'  : b.qty > 0 ? '#fef9c3' : '#fee2e2';
-    return `<div class="dd-item" data-id="${b.id}" data-qty="${b.qty}" data-price="${b.price}" data-name="${b.name.replace(/"/g,'&quot;')}" data-batch="${b.batch_num.replace(/"/g,'&quot;')}"
-      style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;justify-content:space-between;gap:8px;"
-      onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
-      <div style="min-width:0;">
-        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.name}</div>
-        <div style="font-size:11px;color:var(--text2);">Партия: ${b.batch_num} · ${b.warehouse_name} · до ${b.expiry}</div>
+    const stockBg    = b.qty > 10 ? '#dcfce7' : b.qty > 0 ? '#fef9c3' : '#fee2e2';
+    const disabled   = isOut ? 'opacity:.5;pointer-events:none;' : '';
+    return `<div class="dd-item" data-id="${b.id}" data-qty="${b.qty}"
+      data-price="${b.price}" data-name="${b.name.replace(/"/g,'&quot;')}"
+      data-batch="${b.batch_num.replace(/"/g,'&quot;')}" data-expiry="${b.expiry}"
+      data-wname="${b.warehouse_name.replace(/"/g,'&quot;')}"
+      style="${disabled}">
+      <div style="min-width:0;flex:1;">
+        <div class="dd-item-name">${highlight(b.name, q)}</div>
+        <div class="dd-item-sub">Партия: ${b.batch_num} · ${b.warehouse_name} · до ${b.expiry}${isOut ? ' · <strong style="color:#991b1b">НЕТ В НАЛИЧИИ</strong>' : ''}</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
-        <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;background:${stockBg};color:${stockColor};">${b.qty} шт</span>
-        <span style="font-size:12px;font-weight:600;color:var(--accent);">${b.price.toLocaleString('ru')} сом</span>
+      <div class="dd-item-right">
+        <div style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:20px;background:${stockBg};color:${stockColor};margin-bottom:3px;">${b.qty} шт</div>
+        <div style="font-size:13px;font-weight:700;color:var(--accent);">${b.price.toLocaleString('ru')} сом</div>
       </div>
     </div>`;
   }).join('');
 
+  // Тач-события для мобильного
   dropdown.querySelectorAll('.dd-item').forEach(item => {
-    item.addEventListener('mousedown', function(e) {
+    const pick = function(e) {
       e.preventDefault();
-      selectBatch(tr, {
-        id:    this.dataset.id,
-        qty:   parseInt(this.dataset.qty),
-        price: parseFloat(this.dataset.price),
-        name:  this.dataset.name,
-        batch: this.dataset.batch,
+      selectBatch(card, {
+        id:      item.dataset.id,
+        qty:     parseInt(item.dataset.qty),
+        price:   parseFloat(item.dataset.price),
+        name:    item.dataset.name,
+        batch:   item.dataset.batch,
+        expiry:  item.dataset.expiry,
+        wname:   item.dataset.wname,
       });
-    });
+    };
+    item.addEventListener('mousedown', pick);
+    item.addEventListener('touchend',  pick);
   });
 
   dropdown.style.display = 'block';
 }
 
-function hideDropdown(tr) {
-  tr.querySelector('.search-dropdown').style.display = 'none';
+function highlight(text, q) {
+  if (!q) return text;
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+  return text.replace(re, '<mark style="background:#fef08a;border-radius:2px;">$1</mark>');
 }
 
-function selectBatch(tr, b) {
-  tr.querySelector('.batch-id-input').value  = b.id;
-  tr.querySelector('.search-input').value    = b.name + '  (партия ' + b.batch + ')';
-  tr.querySelector('.price-input').value     = b.price;
-
-  const badge = tr.querySelector('.stock-badge');
-  badge.textContent = b.qty + ' шт';
-  badge.style.color = b.qty > 10 ? 'var(--success)' : b.qty > 0 ? 'var(--warning)' : 'var(--danger)';
-
-  hideDropdown(tr);
-  tr.querySelector('.qty-input').focus();
-  calcRow(tr);
+function hideDropdown(card) {
+  card.querySelector('.item-dropdown').style.display = 'none';
 }
 
-function calcRow(tr) {
-  const qty   = parseFloat(tr.querySelector('.qty-input').value)   || 0;
-  const price = parseFloat(tr.querySelector('.price-input').value) || 0;
+/* ── Выбрать партию ──────────────────────────────────────────── */
+function selectBatch(card, b) {
+  card.querySelector('.batch-id-input').value = b.id;
+  card.querySelector('.item-search-input').value = b.name;
+  card.querySelector('.price-input').value = b.price;
+
+  const stockColor = b.qty > 10 ? '#166534' : b.qty > 0 ? '#854d0e' : '#991b1b';
+  const stockBg    = b.qty > 10 ? '#dcfce7' : b.qty > 0 ? '#fef9c3' : '#fee2e2';
+
+  const badge = card.querySelector('[data-role="badge"]');
+  badge.innerHTML = `
+    <span class="item-selected-badge" style="background:#e0f2fe;color:#0369a1;">
+      ✓ ${b.name}
+    </span>
+    <span style="font-size:11px;color:var(--text2);">
+      Партия: <strong>${b.batch}</strong> · до ${b.expiry} · ${b.wname}
+    </span>
+    <span style="margin-left:8px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:${stockBg};color:${stockColor};">
+      ${b.qty} шт в наличии
+    </span>`;
+  badge.style.display = 'block';
+
+  card.querySelector('[data-role="row2"]').style.display = 'grid';
+  card.classList.add('selected');
+  card.classList.remove('has-error');
+
+  hideDropdown(card);
+  const qtyInput = card.querySelector('.qty-input');
+  qtyInput.value = '';
+  qtyInput.focus();
+  calcRow(card);
+  updateChecklist();
+}
+
+/* ── Подсчёт ─────────────────────────────────────────────────── */
+function calcRow(card) {
+  const qty   = parseFloat(card.querySelector('.qty-input').value)   || 0;
+  const price = parseFloat(card.querySelector('.price-input').value) || 0;
   const amount = qty * price;
-  const el = tr.querySelector('.row-amount');
+  const el = card.querySelector('[data-role="amount"]');
   el.textContent = amount > 0 ? amount.toLocaleString('ru', {maximumFractionDigits:2}) + ' сом' : '—';
-  el.style.color = amount > 0 ? 'var(--text)' : 'var(--text2)';
+  el.style.color = amount > 0 ? 'var(--accent)' : 'var(--text2)';
   calcTotal();
 }
 
 function calcTotal() {
   let total = 0;
-  document.querySelectorAll('.item-row').forEach(tr => {
-    total += (parseFloat(tr.querySelector('.qty-input').value)   || 0) *
-             (parseFloat(tr.querySelector('.price-input').value) || 0);
+  document.querySelectorAll('.item-card').forEach(card => {
+    total += (parseFloat(card.querySelector('.qty-input')?.value)   || 0) *
+             (parseFloat(card.querySelector('.price-input')?.value) || 0);
   });
   document.getElementById('grandTotal').textContent = total.toLocaleString('ru', {maximumFractionDigits:2});
   updateDebt();
@@ -330,47 +686,122 @@ function calcTotal() {
 
 function updateDebt() {
   let total = 0;
-  document.querySelectorAll('.item-row').forEach(tr => {
-    total += (parseFloat(tr.querySelector('.qty-input').value)   || 0) *
-             (parseFloat(tr.querySelector('.price-input').value) || 0);
+  document.querySelectorAll('.item-card').forEach(card => {
+    total += (parseFloat(card.querySelector('.qty-input')?.value)   || 0) *
+             (parseFloat(card.querySelector('.price-input')?.value) || 0);
   });
   const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
   const debt = Math.max(0, total - paid);
   const el   = document.getElementById('debtPreview');
-  el.textContent  = debt.toLocaleString('ru', {maximumFractionDigits:0}) + ' сом';
-  el.style.color  = debt > 0 ? 'var(--danger)' : 'var(--success)';
+  el.textContent = debt.toLocaleString('ru', {maximumFractionDigits:0}) + ' сом';
+  el.style.color      = debt > 0 ? 'var(--danger)' : 'var(--success)';
+  el.style.background = debt > 0 ? '#fff5f5' : '#f0fdf4';
+  el.style.borderColor= debt > 0 ? '#fca5a5' : '#86efac';
 }
 
-function addRow() {
-  const tr = makeRow();
-  document.getElementById('itemsBody').appendChild(tr);
-  attachListeners(tr);
-  tr.querySelector('.search-input').focus();
+/* ── Живой чеклист ───────────────────────────────────────────── */
+function setCheck(id, state) {
+  // state: 'pending' | 'done' | 'fail'
+  const li = document.getElementById(id);
+  if (!li) return;
+  li.classList.remove('done','fail');
+  const icon = li.querySelector('.check-icon');
+  if (state === 'done') { li.classList.add('done'); icon.textContent = '✅'; }
+  else if (state === 'fail') { li.classList.add('fail'); icon.textContent = '❌'; }
+  else { icon.textContent = '○'; }
 }
 
-function buildItemsJson() {
-  const items = [];
-  let valid = true;
-  document.querySelectorAll('.item-row').forEach(tr => {
-    const id    = tr.querySelector('.batch-id-input').value;
-    const qty   = parseInt(tr.querySelector('.qty-input').value)    || 0;
-    const price = parseFloat(tr.querySelector('.price-input').value) || 0;
-    if (!id || qty <= 0 || price <= 0) { valid = false; return; }
-    items.push({ batch_id: id, quantity: qty, price: price });
+function updateChecklist() {
+  const pharmacy = document.getElementById('pharmacySelect').value;
+  const warehouse = document.getElementById('warehouseSelect').value;
+  const legal = document.getElementById('legalEntitySelect').value;
+  const cards = document.querySelectorAll('.item-card');
+  const hasItems = cards.length > 0;
+  let allQty = true;
+
+  cards.forEach(card => {
+    const bId  = card.querySelector('.batch-id-input').value;
+    const qty  = parseFloat(card.querySelector('.qty-input')?.value) || 0;
+    const price= parseFloat(card.querySelector('.price-input')?.value) || 0;
+    if (!bId || qty <= 0 || price <= 0) allQty = false;
   });
 
-  const errEl = document.getElementById('formError');
-  if (!valid || items.length === 0) {
-    errEl.style.display = '';
-    errEl.textContent   = 'Заполните все строки: выберите товар, укажите количество и цену.';
-    return false;
-  }
-  errEl.style.display = 'none';
-  document.getElementById('itemsJson').value = JSON.stringify(items);
-  return true;
+  setCheck('chk-pharmacy',  pharmacy  ? 'done' : 'pending');
+  setCheck('chk-warehouse', warehouse ? 'done' : 'pending');
+  setCheck('chk-legal',     legal     ? 'done' : 'pending');
+  setCheck('chk-items',     hasItems  ? 'done' : 'pending');
+  setCheck('chk-qty',       hasItems && allQty ? 'done' : hasItems ? 'fail' : 'pending');
+
+  const allDone = pharmacy && warehouse && legal && hasItems && allQty;
+  document.getElementById('submitBtn').disabled = false; // всегда кликабельна, ошибки покажем при клике
 }
 
-// Добавить первую строку при загрузке
-addRow();
+/* ── Отправка ────────────────────────────────────────────────── */
+function submitSale() {
+  const pharmacy  = document.getElementById('pharmacySelect').value;
+  const warehouse = document.getElementById('warehouseSelect').value;
+  const legal     = document.getElementById('legalEntitySelect').value;
+  const cards     = document.querySelectorAll('.item-card');
+  const errEl     = document.getElementById('submitError');
+  const errText   = document.getElementById('submitErrorText');
+
+  // Подсветить чеклист как fail
+  if (!pharmacy)  setCheck('chk-pharmacy',  'fail');
+  if (!warehouse) setCheck('chk-warehouse', 'fail');
+  if (!legal)     setCheck('chk-legal',     'fail');
+
+  if (!pharmacy) {
+    showError('Выберите аптеку — без этого продажа невозможна.'); return;
+  }
+  if (!warehouse) {
+    showError('Выберите склад — нужно знать, откуда списывать товар.'); return;
+  }
+  if (!legal) {
+    showError('Выберите юридическое лицо (продавца) для накладной.'); return;
+  }
+  if (cards.length === 0) {
+    showError('Добавьте хотя бы один товар — нажмите кнопку "+ Добавить товар".'); return;
+  }
+
+  const items = [];
+  let rowError = null;
+  cards.forEach((card, i) => {
+    const bId   = card.querySelector('.batch-id-input').value;
+    const qty   = parseFloat(card.querySelector('.qty-input')?.value) || 0;
+    const price = parseFloat(card.querySelector('.price-input')?.value) || 0;
+
+    if (!bId) {
+      card.classList.add('has-error');
+      if (!rowError) rowError = `Строка ${i+1}: выберите товар из выпадающего списка (нажмите на поле поиска).`;
+    } else if (qty <= 0) {
+      card.classList.add('has-error');
+      if (!rowError) rowError = `Строка ${i+1}: укажите количество (больше нуля).`;
+    } else if (price <= 0) {
+      card.classList.add('has-error');
+      if (!rowError) rowError = `Строка ${i+1}: укажите цену продажи.`;
+    } else {
+      card.classList.remove('has-error');
+      items.push({ batch_id: bId, quantity: qty, price: price });
+    }
+  });
+
+  if (rowError) { showError(rowError); return; }
+
+  errEl.style.display = 'none';
+  document.getElementById('itemsJson').value = JSON.stringify(items);
+  document.getElementById('saleForm').submit();
+}
+
+function showError(msg) {
+  const errEl   = document.getElementById('submitError');
+  const errText = document.getElementById('submitErrorText');
+  errText.textContent = msg;
+  errEl.style.display = 'flex';
+  errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ── Старт ───────────────────────────────────────────────────── */
+updateChecklist();
+addItem(); // первая карточка сразу
 </script>
 {% endblock %}
