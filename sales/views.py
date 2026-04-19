@@ -166,14 +166,22 @@ def sale_create(request):
         sale.total_amount = total_amount
         sale.total_cost = total_cost
         sale.save()
-        messages.success(request, f'Продажа #{sale.pk} создана')
-        return redirect('sale_detail', pk=sale.pk)
+        return redirect('sale_review', pk=sale.pk)
     return render(request, 'sales/sale_form.html', {
         'pharmacies': pharmacies, 'warehouses': warehouses,
         'employees': employees,
         'legal_entities': legal_entities, 'default_entity': default_entity,
         'batches_json': batches_json,
     })
+
+
+@login_required
+def sale_review(request, pk):
+    sale = get_object_or_404(Sale, pk=pk)
+    if sale.status != 'pending':
+        return redirect('sale_detail', pk=pk)
+    items = sale.items.select_related('batch__product', 'batch__warehouse')
+    return render(request, 'sales/sale_review.html', {'sale': sale, 'items': items})
 
 
 @login_required
