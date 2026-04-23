@@ -387,8 +387,10 @@ def location_map(request):
     for u in visible.select_related('location'):
         loc = getattr(u, 'location', None)
         if loc:
-            online = loc.updated_at >= (tz.now() - timedelta(minutes=15))
-            recent = loc.updated_at >= cutoff
+            now      = tz.now()
+            online   = loc.updated_at >= (now - timedelta(minutes=15))
+            away     = not online and loc.updated_at >= (now - timedelta(hours=2))
+            recent   = loc.updated_at >= cutoff
             if recent:
                 locations.append({
                     'id':       u.pk,
@@ -399,6 +401,7 @@ def location_map(request):
                     'address':  loc.address,
                     'updated':  loc.updated_at.strftime('%d.%m %H:%M'),
                     'online':   online,
+                    'away':     away,
                     'url':      f'/accounts/users/{u.pk}/',
                 })
 
