@@ -10,4 +10,6 @@ urlpatterns = [
     path('users/<int:pk>/', views.employee_card, name='employee_card'),
     path('users/<int:pk>/set-plan/', views.set_employee_plan, name='set_employee_plan'),
     path('users/<int:pk>/set-salary/', views.set_salary_percent, name='set_salary_percent'),
+    path('map/', views.location_map, name='location_map'),
+    path('update-location/', views.update_location, name='update_location'),
 ]

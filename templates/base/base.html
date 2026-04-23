@@ -537,12 +537,18 @@ textarea{resize:vertical;}
     </a>
   </div>
 
-  {% if user.role in 'superadmin,director' %}
+  {% if user.role in 'superadmin,director,sales_manager' %}
   <div class="s-section">
     <div class="s-label">Управление</div>
+    {% if user.role in 'superadmin,director' %}
     <a href="{% url 'users_list' %}" onclick="closeSidebar()"
        class="s-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
       <span class="si">🔑</span>Пользователи
+    </a>
+    {% endif %}
+    <a href="{% url 'location_map' %}" onclick="closeSidebar()"
+       class="s-link {% if 'location_map' in request.resolver_match.url_name %}active{% endif %}">
+      <span class="si">📍</span>Карта сотрудников
     </a>
   </div>
   {% endif %}
@@ -659,5 +665,153 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSide
 })();
 </script>
 {% block extra_js %}{% endblock %}
+
+{% if user.is_authenticated and user.role in 'med_rep,warehouse' %}
+<!-- Однократный запрос геолокации + фоновый трекер -->
+<div id="geo-modal" style="
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+  align-items:flex-end;justify-content:center;padding:0 0 24px;">
+  <div style="background:#fff;border-radius:20px 20px 16px 16px;max-width:420px;width:calc(100% - 32px);
+              padding:28px 24px;box-shadow:0 -4px 40px rgba(0,0,0,.18);text-align:center;">
+    <div style="font-size:48px;margin-bottom:12px;">📍</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Разрешите доступ к геолокации</div>
+    <div style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:20px;">
+      Ваш руководитель видит, где вы находитесь в рабочее время.<br>
+      Нажмите <strong>«Разрешить»</strong> — браузер больше не будет спрашивать.
+    </div>
+    <button id="geo-allow-btn" onclick="requestGeo()" style="
+      width:100%;min-height:52px;font-size:16px;font-weight:700;
+      background:#2563eb;color:#fff;border:none;border-radius:14px;
+      cursor:pointer;margin-bottom:10px;">
+      📍 Разрешить геолокацию
+    </button>
+    <button onclick="dismissGeo()" style="
+      width:100%;min-height:44px;font-size:14px;color:#94a3b8;
+      background:none;border:none;cursor:pointer;">
+      Позже
+    </button>
+  </div>
+</div>
+
+<div id="geo-denied-banner" style="
+  display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  z-index:9998;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:14px;
+  padding:14px 18px;max-width:400px;width:calc(100% - 32px);
+  font-size:13px;color:#991b1b;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+  <strong>📍 Геолокация заблокирована</strong><br>
+  Чтобы включить: нажмите 🔒 в адресной строке браузера →
+  <strong>Разрешения сайта → Местоположение → Разрешить</strong>.
+  <button onclick="this.parentElement.style.display='none'"
+    style="float:right;background:none;border:none;cursor:pointer;font-size:16px;color:#991b1b;margin-left:8px;">✕</button>
+</div>
+
+<script>
+(function() {
+  var CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  var SETUP_KEY = 'geo_setup_{{ user.pk }}';
+
+  function sendLocation(lat, lng) {
+    fetch('/accounts/update-location/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+      body: JSON.stringify({lat: lat, lng: lng})
+    });
+  }
+
+  function startTracking() {
+    if (!navigator.geolocation) return;
+    // Сразу отправить
+    navigator.geolocation.getCurrentPosition(function(p) {
+      sendLocation(p.coords.latitude, p.coords.longitude);
+    }, null, {maximumAge:60000, timeout:10000});
+    // И каждые 5 минут
+    setInterval(function() {
+      navigator.geolocation.getCurrentPosition(function(p) {
+        sendLocation(p.coords.latitude, p.coords.longitude);
+      }, null, {maximumAge:60000, timeout:10000});
+    }, 5 * 60 * 1000);
+  }
+
+  window.requestGeo = function() {
+    if (!navigator.geolocation) {
+      document.getElementById('geo-modal').style.display = 'none';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function(p) {
+        // Разрешено — запомнить, скрыть модал, начать трекинг
+        localStorage.setItem(SETUP_KEY, 'granted');
+        document.getElementById('geo-modal').style.display = 'none';
+        sendLocation(p.coords.latitude, p.coords.longitude);
+        // Продолжать каждые 5 мин
+        setInterval(function() {
+          navigator.geolocation.getCurrentPosition(function(pp) {
+            sendLocation(pp.coords.latitude, pp.coords.longitude);
+          }, null, {maximumAge:60000, timeout:10000});
+        }, 5 * 60 * 1000);
+      },
+      function(err) {
+        // Заблокировано
+        localStorage.setItem(SETUP_KEY, 'denied');
+        document.getElementById('geo-modal').style.display = 'none';
+        if (err.code === err.PERMISSION_DENIED) {
+          document.getElementById('geo-denied-banner').style.display = 'block';
+          setTimeout(function() {
+            document.getElementById('geo-denied-banner').style.display = 'none';
+          }, 12000);
+        }
+      },
+      {maximumAge: 0, timeout: 15000}
+    );
+  };
+
+  window.dismissGeo = function() {
+    document.getElementById('geo-modal').style.display = 'none';
+    // Спросим снова при следующем входе, но не на каждой странице
+    sessionStorage.setItem('geo_dismissed', '1');
+  };
+
+  // Логика показа при загрузке страницы
+  if (!navigator.geolocation) return;
+
+  var setup = localStorage.getItem(SETUP_KEY);
+
+  if (setup === 'granted') {
+    // Уже разрешено — просто трекаем тихо
+    startTracking();
+    return;
+  }
+
+  if (setup === 'denied') {
+    // Уже отказано — не надоедаем, только покажем баннер раз в сессию
+    return;
+  }
+
+  // Ещё не спрашивали — проверим через Permissions API
+  if (navigator.permissions) {
+    navigator.permissions.query({name:'geolocation'}).then(function(result) {
+      if (result.state === 'granted') {
+        // Браузер уже разрешил (например, дал раньше вручную)
+        localStorage.setItem(SETUP_KEY, 'granted');
+        startTracking();
+      } else if (result.state === 'denied') {
+        localStorage.setItem(SETUP_KEY, 'denied');
+      } else {
+        // 'prompt' — показать модал один раз
+        if (!sessionStorage.getItem('geo_dismissed')) {
+          document.getElementById('geo-modal').style.display = 'flex';
+        }
+      }
+    });
+  } else {
+    // Permissions API не поддерживается — показать модал
+    if (!sessionStorage.getItem('geo_dismissed')) {
+      document.getElementById('geo-modal').style.display = 'flex';
+    }
+  }
+})();
+</script>
+{% endif %}
 </body>
 </html>

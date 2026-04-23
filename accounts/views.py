@@ -5,9 +5,11 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Avg
 from django.db.models.functions import TruncMonth
 from datetime import date, timedelta
-from .models import User
+from .models import User, UserLocation
 from crm.models import Region
 import json
+from django.http import JsonResponse
+from django.utils import timezone
 
 
 def login_view(request):
@@ -339,3 +341,69 @@ def user_create(request):
         messages.success(request, 'Пользователь создан')
         return redirect('users_list')
     return render(request, 'accounts/user_form.html', {'regions': regions, 'action': 'create'})
+
+
+@login_required
+def update_location(request):
+    """Принимает GPS координаты от сотрудника и сохраняет."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    try:
+        data = json.loads(request.body)
+        lat  = float(data['lat'])
+        lng  = float(data['lng'])
+    except (KeyError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'bad data'}, status=400)
+
+    UserLocation.objects.update_or_create(
+        user=request.user,
+        defaults={
+            'latitude':  lat,
+            'longitude': lng,
+            'address':   data.get('address', ''),
+            'is_active': True,
+        }
+    )
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def location_map(request):
+    """Карта местоположения сотрудников (только для менеджеров и боссов)."""
+    if not (request.user.is_boss() or request.user.is_manager()):
+        messages.error(request, 'Доступ запрещён')
+        return redirect('dashboard')
+
+    visible = request.user.get_visible_users().filter(
+        role__in=['med_rep', 'sales_manager', 'warehouse']
+    ).exclude(pk=request.user.pk)
+
+    # Подгружаем локации
+    from django.utils import timezone as tz
+    from datetime import timedelta
+    cutoff = tz.now() - timedelta(hours=24)
+
+    locations = []
+    for u in visible.select_related('location'):
+        loc = getattr(u, 'location', None)
+        if loc:
+            online = loc.updated_at >= (tz.now() - timedelta(minutes=15))
+            recent = loc.updated_at >= cutoff
+            if recent:
+                locations.append({
+                    'id':       u.pk,
+                    'name':     u.get_full_name() or u.username,
+                    'role':     u.get_role_display(),
+                    'lat':      float(loc.latitude),
+                    'lng':      float(loc.longitude),
+                    'address':  loc.address,
+                    'updated':  loc.updated_at.strftime('%d.%m %H:%M'),
+                    'online':   online,
+                    'url':      f'/accounts/users/{u.pk}/',
+                })
+
+    return render(request, 'accounts/location_map.html', {
+        'locations_json': json.dumps(locations, ensure_ascii=False),
+        'total_employees': visible.count(),
+        'active_count': sum(1 for l in locations if l['online']),
+    })

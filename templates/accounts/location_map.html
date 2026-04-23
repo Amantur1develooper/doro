@@ -1,0 +1,298 @@
+{% extends 'base/base.html' %}
+{% block title %}Карта сотрудников{% endblock %}
+{% block page_title %}Карта сотрудников{% endblock %}
+{% block topbar_actions %}
+  <button onclick="refreshMap()" class="btn btn-secondary btn-sm">🔄 Обновить</button>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+.map-wrap {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  height: calc(100vh - 140px);
+  min-height: 500px;
+}
+#map {
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  height: 100%;
+  z-index: 0;
+}
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stat-box {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+}
+.stat-num  { font-size: 28px; font-weight: 800; }
+.stat-lbl  { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: .4px; }
+
+.emp-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.emp-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.emp-card.active { border-color: var(--accent); background: #f0f7ff; }
+.emp-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.emp-name  { font-weight: 700; font-size: 13px; }
+.emp-meta  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  margin-left: auto;
+}
+.dot.online  { background: #22c55e; box-shadow: 0 0 0 3px #dcfce7; }
+.dot.offline { background: #94a3b8; }
+.dot.no-loc  { background: #e2e8f0; }
+
+.no-loc-banner {
+  background: #fefce8;
+  border: 1.5px solid #fde047;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: #854d0e;
+  line-height: 1.5;
+}
+
+.legend {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text2);
+  padding: 3px 0;
+}
+
+@media (max-width: 700px) {
+  .map-wrap {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  #map { height: 60vw; min-height: 300px; }
+  .sidebar { max-height: 340px; }
+}
+</style>
+
+<div class="map-wrap">
+
+  <!-- ── Сайдбар ─────────────────────────────────────────── -->
+  <div class="sidebar">
+
+    <!-- Статистика -->
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-num" style="color:#22c55e;">{{ active_count }}</div>
+        <div class="stat-lbl">Онлайн</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" style="color:var(--text2);">{{ total_employees }}</div>
+        <div class="stat-lbl">Всего</div>
+      </div>
+    </div>
+
+    <!-- Легенда -->
+    <div class="legend">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px;">Статус</div>
+      <div class="legend-item"><span class="dot online"></span> Онлайн (≤ 15 мин)</div>
+      <div class="legend-item"><span class="dot offline"></span> Недавно (до 24 ч)</div>
+      <div class="legend-item"><span class="dot no-loc"></span> Нет данных</div>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);">
+      Сотрудники
+    </div>
+
+    <div id="empList"></div>
+
+    <div class="no-loc-banner" id="noLocBanner" style="display:none;">
+      📍 Некоторые сотрудники не передают геолокацию. Им нужно открыть систему в браузере и разрешить доступ к местоположению.
+    </div>
+
+    <div style="font-size:11px;color:var(--text2);text-align:center;margin-top:auto;padding-top:8px;">
+      Обновляется каждые 30 сек<br>
+      <span id="lastRefresh"></span>
+    </div>
+  </div>
+
+  <!-- ── Карта ───────────────────────────────────────────── -->
+  <div id="map"></div>
+
+</div>
+
+<script>
+const LOCATIONS = {{ locations_json|safe }};
+const COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f97316','#14b8a6','#f59e0b','#06b6d4','#84cc16'];
+
+let map, markers = {}, activeId = null;
+
+function initMap() {
+  map = L.map('map', { zoomControl: true }).setView([42.87, 74.59], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(map);
+
+  renderAll();
+  updateTime();
+}
+
+function markerIcon(online, color) {
+  const bg    = online ? color : '#94a3b8';
+  const pulse = online ? `box-shadow:0 0 0 6px ${color}33;` : '';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:${bg};border:2.5px solid #fff;${pulse}box-sizing:border-box;"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -12],
+  });
+}
+
+function renderAll() {
+  // Очистить старые маркеры
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+
+  const listEl = document.getElementById('empList');
+  listEl.innerHTML = '';
+  let hasNoLoc = false;
+
+  LOCATIONS.forEach((emp, i) => {
+    const color = COLORS[i % COLORS.length];
+
+    // Маркер
+    const marker = L.marker([emp.lat, emp.lng], { icon: markerIcon(emp.online, color) })
+      .addTo(map)
+      .bindPopup(popupHtml(emp, color));
+    marker.on('click', () => selectEmp(emp.id));
+    markers[emp.id] = marker;
+
+    // Карточка в сайдбаре
+    const card = document.createElement('div');
+    card.className = 'emp-card';
+    card.id = 'card-' + emp.id;
+    card.innerHTML = `
+      <div class="emp-avatar" style="background:${color};">${initials(emp.name)}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="emp-name">${emp.name}</div>
+        <div class="emp-meta">${emp.role}</div>
+        <div class="emp-meta" style="margin-top:2px;">📍 ${emp.address || emp.lat.toFixed(4)+', '+emp.lng.toFixed(4)}</div>
+        <div class="emp-meta">🕐 ${emp.updated}</div>
+      </div>
+      <div class="dot ${emp.online ? 'online' : 'offline'}"></div>
+    `;
+    card.onclick = () => selectEmp(emp.id);
+    listEl.appendChild(card);
+  });
+
+  // Сотрудники без локации
+  {% if total_employees %}
+  if (LOCATIONS.length < {{ total_employees }}) {
+    hasNoLoc = true;
+  }
+  {% endif %}
+  document.getElementById('noLocBanner').style.display = hasNoLoc ? 'block' : 'none';
+
+  // Подогнать карту под маркеры
+  if (LOCATIONS.length > 0) {
+    const group = L.featureGroup(Object.values(markers));
+    map.fitBounds(group.getBounds().pad(0.3));
+  }
+}
+
+function popupHtml(emp, color) {
+  return `
+    <div style="min-width:200px;font-family:inherit;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:${color};
+                    display:flex;align-items:center;justify-content:center;
+                    color:#fff;font-weight:700;font-size:13px;flex-shrink:0;">${initials(emp.name)}</div>
+        <div>
+          <div style="font-weight:700;font-size:14px;">${emp.name}</div>
+          <div style="font-size:11px;color:#64748b;">${emp.role}</div>
+        </div>
+        <span style="margin-left:auto;display:inline-block;width:10px;height:10px;border-radius:50%;
+                     background:${emp.online ? '#22c55e' : '#94a3b8'};"></span>
+      </div>
+      ${emp.address ? `<div style="font-size:12px;color:#475569;margin-bottom:4px;">📍 ${emp.address}</div>` : ''}
+      <div style="font-size:11px;color:#94a3b8;">Обновлено: ${emp.updated}</div>
+      <a href="${emp.url}" style="display:block;margin-top:10px;text-align:center;
+         background:#3b82f6;color:#fff;border-radius:8px;padding:6px;font-size:12px;
+         font-weight:600;text-decoration:none;">Открыть профиль →</a>
+    </div>`;
+}
+
+function selectEmp(id) {
+  // Снять предыдущее выделение
+  if (activeId) {
+    const prev = document.getElementById('card-' + activeId);
+    if (prev) prev.classList.remove('active');
+  }
+  activeId = id;
+  const card = document.getElementById('card-' + id);
+  if (card) {
+    card.classList.add('active');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  const marker = markers[id];
+  if (marker) {
+    map.setView(marker.getLatLng(), 15, { animate: true });
+    marker.openPopup();
+  }
+}
+
+function initials(name) {
+  return name.split(' ').slice(0,2).map(w => w[0] || '').join('').toUpperCase();
+}
+
+function updateTime() {
+  const now = new Date();
+  document.getElementById('lastRefresh').textContent =
+    'Последнее: ' + now.toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'});
+}
+
+function refreshMap() {
+  location.reload();
+}
+
+// Автообновление каждые 30 сек
+setInterval(() => {
+  fetch(location.href, { headers: {'X-Requested-With':'fetch'} })
+    .then(() => location.reload())
+}, 30000);
+
+initMap();
+</script>
+{% endblock %}

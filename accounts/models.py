@@ -54,3 +54,20 @@ class User(AbstractUser):
         if self.is_manager():
             return User.objects.filter(manager=self)
         return User.objects.filter(pk=self.pk)
+
+
+class UserLocation(models.Model):
+    user      = models.OneToOneField(User, on_delete=models.CASCADE,
+                                     related_name='location', verbose_name='Сотрудник')
+    latitude  = models.DecimalField('Широта',  max_digits=9, decimal_places=6)
+    longitude = models.DecimalField('Долгота', max_digits=9, decimal_places=6)
+    address   = models.CharField('Адрес', max_length=300, blank=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+    is_active  = models.BooleanField('Онлайн', default=True)
+
+    class Meta:
+        verbose_name = 'Геолокация'
+        verbose_name_plural = 'Геолокации'
+
+    def __str__(self):
+        return f"{self.user} — {self.updated_at:%d.%m %H:%M}"
