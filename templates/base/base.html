@@ -499,10 +499,6 @@ textarea{resize:vertical;}
        class="s-link {% if request.resolver_match.url_name == 'movements_list' %}active{% endif %}">
       <span class="si">🔄</span>Движение товаров
     </a>
-    <a href="{% url 'dora_report' %}" onclick="closeSidebar()"
-       class="s-link {% if 'dora' in request.resolver_match.url_name %}active{% endif %}">
-      <span class="si">📂</span>Доро Лайн
-    </a>
   </div>
 
   <div class="s-section">
