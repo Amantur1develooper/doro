@@ -1,0 +1,72 @@
+{% extends 'base/base.html' %}
+{% block title %}Редактировать врача{% endblock %}
+{% block page_title %}Редактировать врача{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'doctor_detail' doctor.pk %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;">
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:20px;">✏️ Редактирование: {{ doctor.full_name }}</h2>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="grid-2">
+        <div>
+          <label>ФИО *</label>
+          <input type="text" name="full_name" required value="{{ doctor.full_name }}">
+        </div>
+        <div>
+          <label>Специализация *</label>
+          <input type="text" name="specialty" required value="{{ doctor.specialty }}">
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label>Медучреждение</label>
+        <input type="text" name="institution" value="{{ doctor.institution }}">
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>Телефон</label>
+          <input type="text" name="phone" value="{{ doctor.phone }}">
+        </div>
+        <div>
+          <label>Регион</label>
+          <select name="region">
+            <option value="">— Выберите регион —</option>
+            {% for r in regions %}
+            <option value="{{ r.pk }}" {% if doctor.region_id == r.pk %}selected{% endif %}>{{ r.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label>Адрес</label>
+        <input type="text" name="address" value="{{ doctor.address }}">
+      </div>
+
+      {% if not is_employee %}
+      <div style="margin-bottom:14px;">
+        <label>Представитель (сотрудник)</label>
+        <select name="representative">
+          <option value="">— Не назначен —</option>
+          {% for r in reps %}
+          <option value="{{ r.pk }}" {% if doctor.representative_id == r.pk %}selected{% endif %}>{{ r.get_full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div style="margin-bottom:14px;">
+        <label>Заметки</label>
+        <textarea name="notes">{{ doctor.notes }}</textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+        <a href="{% url 'doctor_detail' doctor.pk %}" class="btn btn-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

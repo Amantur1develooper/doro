@@ -3,6 +3,9 @@
 {% block page_title %}{{ doctor.full_name }}{% endblock %}
 {% block topbar_actions %}
   <a href="{% url 'visit_create' %}" class="btn btn-primary btn-sm">+ Новый визит</a>
+  {% if not request.user.role == 'med_rep' or doctor.representative == request.user %}
+  <a href="{% url 'doctor_edit' doctor.pk %}" class="btn btn-secondary btn-sm">✏️ Редактировать</a>
+  {% endif %}
   <a href="{% url 'doctors_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
 {% endblock %}
 

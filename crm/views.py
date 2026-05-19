@@ -106,6 +106,39 @@ def doctor_create(request):
 
 
 @login_required
+def doctor_edit(request, pk):
+    doctor = get_object_or_404(Doctor, pk=pk)
+    # Доступ: сотрудник — только свой, менеджер/босс — любой
+    if user_is_employee(request.user) and doctor.representative != request.user:
+        messages.error(request, 'Нет доступа')
+        return redirect('doctor_detail', pk=pk)
+
+    regions = Region.objects.all()
+    reps = _get_visible_reps(request.user)
+    is_emp = user_is_employee(request.user)
+
+    if request.method == 'POST':
+        doctor.full_name   = request.POST.get('full_name', '').strip()
+        doctor.specialty   = request.POST.get('specialty', '').strip()
+        doctor.institution = request.POST.get('institution', '').strip()
+        doctor.phone       = request.POST.get('phone', '').strip()
+        doctor.address     = request.POST.get('address', '').strip()
+        doctor.notes       = request.POST.get('notes', '')
+        region_id = request.POST.get('region')
+        doctor.region_id = region_id if region_id else None
+        if not is_emp:
+            rep_id = request.POST.get('representative')
+            doctor.representative_id = rep_id if rep_id else None
+        doctor.save()
+        messages.success(request, f'Врач «{doctor.full_name}» обновлён')
+        return redirect('doctor_detail', pk=pk)
+
+    return render(request, 'crm/doctor_edit.html', {
+        'doctor': doctor, 'regions': regions, 'reps': reps, 'is_employee': is_emp,
+    })
+
+
+@login_required
 def pharmacies_list(request):
     pharmacies = Pharmacy.objects.select_related('region', 'representative')
     region_id = request.GET.get('region')
