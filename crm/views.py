@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime, parse_date
 from .models import Doctor, Pharmacy, Visit, VisitPhoto, VisitAudio, VisitPlan, Region
@@ -20,12 +20,9 @@ def doctors_list(request):
     rep_id = request.GET.get('rep')
     search = request.GET.get('q', '')
 
-    # Иерархия: сотрудник видит своих врачей + врачей своего руководителя
+    # Иерархия: сотрудник видит только своих врачей
     if user_is_employee(request.user):
-        emp_filter = Q(representative=request.user)
-        if request.user.manager_id:
-            emp_filter |= Q(representative_id=request.user.manager_id)
-        doctors = doctors.filter(emp_filter)
+        doctors = doctors.filter(representative=request.user)
     elif request.user.is_manager():
         visible_ids = _visible_user_ids(request.user)
         doctors = doctors.filter(representative_id__in=visible_ids)
@@ -40,23 +37,36 @@ def doctors_list(request):
 
     regions = Region.objects.all()
     reps = _get_visible_reps(request.user)
+
+    # Статистика по сотрудникам для менеджера/босса
+    rep_stats = []
+    if request.user.is_manager() or request.user.is_boss():
+        qs_base = Doctor.objects.all()
+        if request.user.is_manager():
+            visible_ids = _visible_user_ids(request.user)
+            qs_base = qs_base.filter(representative_id__in=visible_ids)
+        rep_stats = list(
+            qs_base.values('representative__pk', 'representative__first_name',
+                           'representative__last_name', 'representative__username')
+            .annotate(cnt=Count('id'))
+            .order_by('-cnt')
+        )
+
     return render(request, 'crm/doctors_list.html', {
         'doctors': doctors, 'regions': regions, 'reps': reps, 'search': search,
         'is_employee': user_is_employee(request.user),
+        'rep_stats': rep_stats,
+        'selected_rep': rep_id,
     })
 
 
 @login_required
 def doctor_detail(request, pk):
     doctor = get_object_or_404(Doctor, pk=pk)
-    # Доступ: boss и manager видят всех, сотрудник — своих + врачей своего руководителя
-    if user_is_employee(request.user):
-        allowed = {request.user.pk}
-        if request.user.manager_id:
-            allowed.add(request.user.manager_id)
-        if doctor.representative_id not in allowed:
-            messages.error(request, 'Нет доступа к этому врачу')
-            return redirect('doctors_list')
+    # Доступ: boss и manager видят всех, сотрудник — только своих
+    if user_is_employee(request.user) and doctor.representative != request.user:
+        messages.error(request, 'Нет доступа к этому врачу')
+        return redirect('doctors_list')
     visits = Visit.objects.filter(doctor=doctor).select_related('employee').order_by('-planned_date')[:20]
     return render(request, 'crm/doctor_detail.html', {'doctor': doctor, 'visits': visits})
 
@@ -101,12 +111,9 @@ def pharmacies_list(request):
     region_id = request.GET.get('region')
     search = request.GET.get('q', '')
 
-    # Иерархия: сотрудник видит свои аптеки + аптеки своего руководителя
+    # Иерархия: сотрудник видит только свои аптеки
     if user_is_employee(request.user):
-        emp_filter = Q(representative=request.user)
-        if request.user.manager_id:
-            emp_filter |= Q(representative_id=request.user.manager_id)
-        pharmacies = pharmacies.filter(emp_filter)
+        pharmacies = pharmacies.filter(representative=request.user)
     elif request.user.is_manager():
         visible_ids = _visible_user_ids(request.user)
         pharmacies = pharmacies.filter(representative_id__in=visible_ids)
@@ -126,14 +133,10 @@ def pharmacies_list(request):
 @login_required
 def pharmacy_detail(request, pk):
     pharmacy = get_object_or_404(Pharmacy, pk=pk)
-    # Доступ: сотрудник видит свои аптеки + аптеки своего руководителя
-    if user_is_employee(request.user):
-        allowed = {request.user.pk}
-        if request.user.manager_id:
-            allowed.add(request.user.manager_id)
-        if pharmacy.representative_id not in allowed:
-            messages.error(request, 'Нет доступа к этой аптеке')
-            return redirect('pharmacies_list')
+    # Доступ: сотрудник видит только свои аптеки
+    if user_is_employee(request.user) and pharmacy.representative != request.user:
+        messages.error(request, 'Нет доступа к этой аптеке')
+        return redirect('pharmacies_list')
     visits = Visit.objects.filter(pharmacy=pharmacy).select_related('employee').order_by('-planned_date')[:20]
     from sales.models import Sale
     sales = Sale.objects.filter(pharmacy=pharmacy).order_by('-date')[:10]

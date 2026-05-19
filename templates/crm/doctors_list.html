@@ -14,7 +14,32 @@
 
 {% if is_employee %}
 <div style="margin-bottom:14px;padding:10px 14px;background:#dbeafe;border-radius:8px;font-size:13px;color:#1d4ed8;">
-  🔒 Вы видите только своих врачей. Они доступны вам и вашему руководителю.
+  🔒 Вы видите только своих врачей.
+</div>
+{% endif %}
+
+{% if rep_stats %}
+<div style="margin-bottom:18px;">
+  <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">По сотрудникам</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.region %}region={{ request.GET.region }}&{% endif %}"
+       style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;border:1.5px solid {% if not selected_rep %}var(--accent){% else %}var(--border){% endif %};background:{% if not selected_rep %}#eff6ff{% else %}#fff{% endif %};text-decoration:none;font-size:13px;font-weight:600;color:{% if not selected_rep %}var(--accent){% else %}var(--text){% endif %};">
+      Все
+      <span style="background:{% if not selected_rep %}var(--accent){% else %}#e2e8f0{% endif %};color:{% if not selected_rep %}#fff{% else %}var(--text2){% endif %};border-radius:20px;padding:1px 8px;font-size:11px;">{{ doctors.count }}</span>
+    </a>
+    {% for s in rep_stats %}
+    {% with name=s.representative__first_name|add:" "|add:s.representative__last_name %}
+    <a href="?rep={{ s.representative__pk }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.region %}&region={{ request.GET.region }}{% endif %}"
+       style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;border:1.5px solid {% if selected_rep == s.representative__pk|stringformat:'s' %}var(--accent){% else %}var(--border){% endif %};background:{% if selected_rep == s.representative__pk|stringformat:'s' %}#eff6ff{% else %}#fff{% endif %};text-decoration:none;font-size:13px;font-weight:600;color:{% if selected_rep == s.representative__pk|stringformat:'s' %}var(--accent){% else %}var(--text){% endif %};">
+      <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#0969da,#218bff);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;">
+        {{ s.representative__first_name.0|default:s.representative__username.0|upper }}
+      </div>
+      {{ name|default:s.representative__username }}
+      <span style="background:{% if selected_rep == s.representative__pk|stringformat:'s' %}var(--accent){% else %}#e2e8f0{% endif %};color:{% if selected_rep == s.representative__pk|stringformat:'s' %}#fff{% else %}var(--text2){% endif %};border-radius:20px;padding:1px 8px;font-size:11px;">{{ s.cnt }}</span>
+    </a>
+    {% endwith %}
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 
