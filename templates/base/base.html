@@ -707,26 +707,70 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSide
   var CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
   var SETUP_KEY = 'geo_setup_{{ user.pk }}';
 
-  function sendLocation(lat, lng) {
+  var lastSentLat = null, lastSentLng = null, watchId = null;
+  var MIN_DIST_M = 30;   // отправлять только если сдвинулся >30 м
+  var MAX_INTERVAL_MS = 3 * 60 * 1000; // принудительно раз в 3 минуты
+  var lastSentTime = 0;
+
+  // Расстояние между двумя точками (метры, формула Хаверсина)
+  function distMeters(lat1, lng1, lat2, lng2) {
+    var R = 6371000;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLng = (lng2 - lng1) * Math.PI / 180;
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+            Math.sin(dLng/2)*Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function sendLocation(lat, lng, address) {
     fetch('/accounts/update-location/', {
       method: 'POST',
       headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
-      body: JSON.stringify({lat: lat, lng: lng})
+      body: JSON.stringify({lat: lat, lng: lng, address: address || ''})
     });
+    lastSentLat  = lat;
+    lastSentLng  = lng;
+    lastSentTime = Date.now();
+  }
+
+  // Обратное геокодирование через Nominatim (бесплатно)
+  function reverseGeocode(lat, lng, callback) {
+    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng, {
+      headers: {'Accept-Language': 'ru'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var addr = data.display_name || '';
+      // Укоротить: убрать страну и почтовый индекс
+      var parts = addr.split(',').map(function(s) { return s.trim(); });
+      addr = parts.slice(0, 4).join(', ');
+      callback(addr);
+    })
+    .catch(function() { callback(''); });
+  }
+
+  var GEO_OPTS = {enableHighAccuracy: true, maximumAge: 0, timeout: 20000};
+
+  function onPosition(p) {
+    var lat = p.coords.latitude;
+    var lng = p.coords.longitude;
+    var now = Date.now();
+    var moved = (lastSentLat === null) ||
+                distMeters(lastSentLat, lastSentLng, lat, lng) >= MIN_DIST_M;
+    var expired = (now - lastSentTime) >= MAX_INTERVAL_MS;
+
+    if (moved || expired) {
+      reverseGeocode(lat, lng, function(addr) {
+        sendLocation(lat, lng, addr);
+      });
+    }
   }
 
   function startTracking() {
     if (!navigator.geolocation) return;
-    // Сразу отправить
-    navigator.geolocation.getCurrentPosition(function(p) {
-      sendLocation(p.coords.latitude, p.coords.longitude);
-    }, null, {maximumAge:60000, timeout:10000});
-    // И каждые 5 минут
-    setInterval(function() {
-      navigator.geolocation.getCurrentPosition(function(p) {
-        sendLocation(p.coords.latitude, p.coords.longitude);
-      }, null, {maximumAge:60000, timeout:10000});
-    }, 5 * 60 * 1000);
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = navigator.geolocation.watchPosition(onPosition, null, GEO_OPTS);
   }
 
   window.requestGeo = function() {
@@ -736,19 +780,12 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSide
     }
     navigator.geolocation.getCurrentPosition(
       function(p) {
-        // Разрешено — запомнить, скрыть модал, начать трекинг
         localStorage.setItem(SETUP_KEY, 'granted');
         document.getElementById('geo-modal').style.display = 'none';
-        sendLocation(p.coords.latitude, p.coords.longitude);
-        // Продолжать каждые 5 мин
-        setInterval(function() {
-          navigator.geolocation.getCurrentPosition(function(pp) {
-            sendLocation(pp.coords.latitude, pp.coords.longitude);
-          }, null, {maximumAge:60000, timeout:10000});
-        }, 5 * 60 * 1000);
+        onPosition(p);
+        startTracking();
       },
       function(err) {
-        // Заблокировано
         localStorage.setItem(SETUP_KEY, 'denied');
         document.getElementById('geo-modal').style.display = 'none';
         if (err.code === err.PERMISSION_DENIED) {
@@ -758,7 +795,7 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeSide
           }, 12000);
         }
       },
-      {maximumAge: 0, timeout: 15000}
+      GEO_OPTS
     );
   };
 

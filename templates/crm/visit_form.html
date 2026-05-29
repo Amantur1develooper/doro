@@ -127,12 +127,32 @@
 
         <div id="doctorBlock">
           <label class="form-label">Врач</label>
-          <select name="doctor" class="form-control">
-            <option value="">Выберите врача...</option>
-            {% for d in doctors %}
-            <option value="{{ d.pk }}">{{ d.full_name }} — {{ d.specialty }}</option>
-            {% endfor %}
-          </select>
+          <input type="hidden" name="doctor" id="doctorValue">
+          <div style="position:relative;" id="doctorPicker">
+            <input type="text" id="doctorSearch" class="form-control" autocomplete="off"
+                   placeholder="🔍 Поиск по ФИО или специализации..."
+                   style="cursor:pointer;"
+                   onfocus="openDoctorDropdown()"
+                   oninput="filterDoctors(this.value)">
+            <div id="doctorDropdown" style="
+                display:none; position:absolute; z-index:1000; left:0; right:0; top:100%;
+                background:#fff; border:1.5px solid #93c5fd; border-top:none;
+                border-radius:0 0 10px 10px; max-height:220px; overflow-y:auto;
+                box-shadow:0 4px 16px rgba(0,0,0,.10);">
+              {% for d in doctors %}
+              <div class="doctor-opt" data-pk="{{ d.pk }}"
+                   data-label="{{ d.full_name }} — {{ d.specialty }}"
+                   data-search="{{ d.full_name|lower }} {{ d.specialty|lower }}"
+                   onclick="selectDoctor(this)"
+                   style="padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid #f1f5f9;">
+                <span style="font-weight:600;">{{ d.full_name }}</span>
+                <span style="color:#64748b; margin-left:6px;">{{ d.specialty }}</span>
+              </div>
+              {% empty %}
+              <div style="padding:14px;color:#94a3b8;text-align:center;font-size:13px;">Нет врачей</div>
+              {% endfor %}
+            </div>
+          </div>
         </div>
 
         <div id="pharmacyBlock" style="display:none;">
@@ -379,5 +399,57 @@ function toggleTarget() {
   document.getElementById('doctorBlock').style.display   = (t === 'doctor')   ? '' : 'none';
   document.getElementById('pharmacyBlock').style.display = (t === 'pharmacy') ? '' : 'none';
 }
+
+// ─── Doctor search dropdown ───────────────────────────────────────────────────
+function openDoctorDropdown() {
+  document.getElementById('doctorDropdown').style.display = '';
+  filterDoctors(document.getElementById('doctorSearch').value);
+}
+
+function closeDoctorDropdown() {
+  document.getElementById('doctorDropdown').style.display = 'none';
+  // если ничего не выбрано — сбросить текст
+  if (!document.getElementById('doctorValue').value) {
+    document.getElementById('doctorSearch').value = '';
+  }
+}
+
+function filterDoctors(q) {
+  const term = q.toLowerCase().trim();
+  const opts = document.querySelectorAll('.doctor-opt');
+  let visible = 0;
+  opts.forEach(el => {
+    const match = !term || el.dataset.search.includes(term);
+    el.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  // пустой результат
+  let empty = document.getElementById('doctorEmpty');
+  if (!visible) {
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.id = 'doctorEmpty';
+      empty.style = 'padding:14px;color:#94a3b8;text-align:center;font-size:13px;';
+      empty.textContent = 'Врачи не найдены';
+      document.getElementById('doctorDropdown').appendChild(empty);
+    }
+    empty.style.display = '';
+  } else if (empty) {
+    empty.style.display = 'none';
+  }
+}
+
+function selectDoctor(el) {
+  document.getElementById('doctorValue').value  = el.dataset.pk;
+  document.getElementById('doctorSearch').value = el.dataset.label;
+  document.getElementById('doctorDropdown').style.display = 'none';
+}
+
+// закрыть при клике вне
+document.addEventListener('click', e => {
+  if (!document.getElementById('doctorPicker').contains(e.target)) {
+    closeDoctorDropdown();
+  }
+});
 </script>
 {% endblock %}
