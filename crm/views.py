@@ -242,7 +242,8 @@ def visits_list(request):
     employees = _get_visible_reps(request.user)
     return render(request, 'crm/visits_list.html', {
         'visits': visits, 'employees': employees,
-        'status_choices': Visit.STATUS_CHOICES
+        'status_choices': Visit.STATUS_CHOICES,
+        'is_employee': user_is_employee(request.user),
     })
 
 
@@ -311,7 +312,57 @@ def visit_detail(request, pk):
     if user_is_employee(request.user) and visit.employee != request.user:
         messages.error(request, 'Нет доступа к этому визиту')
         return redirect('visits_list')
-    return render(request, 'crm/visit_detail.html', {'visit': visit})
+    can_edit = (
+        request.user.is_boss() or
+        request.user.is_manager() or
+        visit.employee == request.user
+    )
+    return render(request, 'crm/visit_detail.html', {'visit': visit, 'can_edit': can_edit})
+
+
+@login_required
+def visit_edit(request, pk):
+    visit = get_object_or_404(Visit, pk=pk)
+    # Доступ: свой визит или менеджер/босс
+    if user_is_employee(request.user) and visit.employee != request.user:
+        messages.error(request, 'Нет доступа')
+        return redirect('visits_list')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'cancel':
+            visit.status = 'cancelled'
+            visit.save(update_fields=['status'])
+            messages.success(request, 'Визит отменён')
+            return redirect('visits_list')
+
+        # Обычное редактирование
+        planned_raw = request.POST.get('planned_date', '')
+        planned_dt = parse_datetime(planned_raw)
+        if planned_dt is None:
+            d = parse_date(planned_raw)
+            if d:
+                planned_dt = timezone.make_aware(
+                    timezone.datetime(d.year, d.month, d.day, 9, 0)
+                )
+        elif timezone.is_naive(planned_dt):
+            planned_dt = timezone.make_aware(planned_dt)
+
+        if planned_dt:
+            visit.planned_date = planned_dt
+
+        new_status = request.POST.get('status')
+        if new_status in dict(Visit.STATUS_CHOICES):
+            visit.status = new_status
+
+        visit.comment = request.POST.get('comment', '')
+        visit.result  = request.POST.get('result', '')
+        visit.save(update_fields=['planned_date', 'status', 'comment', 'result'])
+        messages.success(request, 'Визит обновлён')
+        return redirect('visit_detail', pk=pk)
+
+    return render(request, 'crm/visit_edit.html', {'visit': visit})
 
 
 @login_required

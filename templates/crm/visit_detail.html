@@ -2,6 +2,9 @@
 {% block title %}Визит #{{ visit.pk }}{% endblock %}
 {% block page_title %}Визит #{{ visit.pk }}{% endblock %}
 {% block topbar_actions %}
+  {% if can_edit %}
+  <a href="{% url 'visit_edit' visit.pk %}" class="btn btn-secondary btn-sm">✏️ Редактировать</a>
+  {% endif %}
   <a href="{% url 'visits_list' %}" class="btn btn-secondary btn-sm">← Назад</a>
 {% endblock %}
 

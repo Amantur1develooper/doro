@@ -1,0 +1,73 @@
+{% extends 'base/base.html' %}
+{% block title %}Редактировать визит{% endblock %}
+{% block page_title %}Редактировать визит{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'visit_detail' visit.pk %}" class="btn btn-secondary btn-sm">← Назад</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;">
+
+  <!-- Отмена -->
+  {% if visit.status != 'cancelled' and visit.status != 'done' %}
+  <div style="margin-bottom:16px;padding:14px 18px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div>
+      <div style="font-weight:700;font-size:14px;color:#991b1b;">Отменить визит</div>
+      <div style="font-size:12px;color:#b91c1c;margin-top:2px;">Действие необратимо</div>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel">
+      <button type="submit" class="btn btn-sm"
+        style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;"
+        onclick="return confirm('Отменить визит?')">❌ Отменить</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2 style="font-size:15px;font-weight:700;margin-bottom:18px;">
+      ✏️ Редактирование визита
+      {% if visit.doctor %}— {{ visit.doctor.full_name }}
+      {% elif visit.pharmacy %}— {{ visit.pharmacy.name }}{% endif %}
+    </h2>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Статус</label>
+        <select name="status" class="form-control">
+          <option value="planned"   {% if visit.status == 'planned'   %}selected{% endif %}>📋 Запланирован</option>
+          <option value="done"      {% if visit.status == 'done'      %}selected{% endif %}>✅ Выполнен</option>
+          <option value="postponed" {% if visit.status == 'postponed' %}selected{% endif %}>🔄 Перенесён</option>
+          <option value="cancelled" {% if visit.status == 'cancelled' %}selected{% endif %}>❌ Отменён</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Плановая дата</label>
+        <input type="datetime-local" name="planned_date" class="form-control"
+          value="{{ visit.planned_date|date:'Y-m-d' }}T{{ visit.planned_date|date:'H:i' }}">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Комментарий</label>
+        <textarea name="comment" class="form-control" rows="3"
+          placeholder="Цель встречи, договорённости...">{{ visit.comment }}</textarea>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label class="form-label">Результат</label>
+        <textarea name="result" class="form-control" rows="3"
+          placeholder="Итог визита...">{{ visit.result }}</textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+        <a href="{% url 'visit_detail' visit.pk %}" class="btn btn-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
