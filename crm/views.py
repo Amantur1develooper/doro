@@ -1,4 +1,5 @@
 import calendar
+import json
 from datetime import date, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -429,36 +430,62 @@ def calendar_view(request):
     if filter_emp and not user_is_employee(request.user):
         visits_qs = visits_qs.filter(employee_id=filter_emp)
 
-    # Группировка по дням {day: [visit, ...]}
-    days_map = {}
-    for v in visits_qs.order_by('planned_date'):
-        d = v.planned_date.date().day
-        days_map.setdefault(d, []).append(v)
-
-    # Сетка календаря — список недель, каждая неделя — список (day_num | None)
-    cal = calendar.monthcalendar(year, month)
-
     # Цвета сотрудников
     COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f97316','#14b8a6','#84cc16','#f43f5e','#0ea5e9']
     emp_colors = {}
     color_idx = 0
-    for v in visits_qs:
+
+    # Сериализуем визиты в JSON (безопасно — без обращений к None в шаблоне)
+    visits_json_list = []
+    for v in visits_qs.order_by('planned_date'):
         if v.employee_id not in emp_colors:
             emp_colors[v.employee_id] = COLORS[color_idx % len(COLORS)]
             color_idx += 1
+        target = (
+            v.doctor.full_name if v.doctor else
+            v.pharmacy.name if v.pharmacy else '—'
+        )
+        from django.urls import reverse
+        visits_json_list.append({
+            'day':      v.planned_date.date().day,
+            'pk':       v.pk,
+            'type':     v.visit_type,
+            'target':   target,
+            'employee': v.employee.get_full_name() or v.employee.username,
+            'emp_id':   v.employee_id,
+            'time':     v.planned_date.strftime('%H:%M'),
+            'status':   v.status,
+            'url':      reverse('visit_detail', args=[v.pk]),
+            'edit_url': reverse('visit_edit', args=[v.pk]),
+            'color':    emp_colors[v.employee_id],
+        })
+
+    # Сетка календаря
+    cal = calendar.monthcalendar(year, month)
 
     MONTHS_RU = ['','Январь','Февраль','Март','Апрель','Май','Июнь',
                  'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
 
     employees = _get_visible_reps(request.user) if not user_is_employee(request.user) else []
 
+    # Список сотрудников с цветами для легенды
+    emp_legend = [
+        {
+            'pk':    emp_id,
+            'name':  next((v['employee'] for v in visits_json_list if v['emp_id'] == emp_id), ''),
+            'color': color,
+        }
+        for emp_id, color in emp_colors.items()
+    ]
+
     return render(request, 'crm/calendar.html', {
         'year': year, 'month': month,
         'month_name': MONTHS_RU[month],
         'today': today,
         'cal': cal,
-        'days_map': days_map,
-        'emp_colors': emp_colors,
+        'visits_json': json.dumps(visits_json_list, ensure_ascii=False),
+        'emp_colors_json': json.dumps(emp_colors),
+        'emp_legend': emp_legend,
         'prev_year': prev_year, 'prev_month': prev_month,
         'next_year': next_year, 'next_month': next_month,
         'employees': employees,
