@@ -1,0 +1,326 @@
+{% extends 'base/base.html' %}
+{% block title %}Календарь визитов{% endblock %}
+{% block page_title %}Календарь визитов{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'visit_create' %}" class="btn btn-primary btn-sm">+ Новый визит</a>
+{% endblock %}
+
+{% block content %}
+<style>
+/* ── Шапка календаря ── */
+.cal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+}
+.cal-nav { display: flex; align-items: center; gap: 12px; }
+.cal-nav a {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: #fff;
+  font-size: 18px; text-decoration: none; color: var(--text);
+  transition: border-color .15s, box-shadow .15s;
+}
+.cal-nav a:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+.cal-title { font-size: 20px; font-weight: 800; }
+
+/* ── Сетка ── */
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border: 1.5px solid var(--border); border-radius: 14px; overflow: hidden;
+  background: var(--border);
+  gap: 1px;
+}
+.cal-dow {
+  background: #f8fafc; padding: 8px 4px;
+  text-align: center; font-size: 11px; font-weight: 700;
+  color: var(--text2); text-transform: uppercase; letter-spacing: .4px;
+}
+.cal-cell {
+  background: #fff; min-height: 110px; padding: 6px;
+  display: flex; flex-direction: column; gap: 3px;
+  position: relative;
+  transition: background .1s;
+}
+.cal-cell.empty { background: #fafafa; }
+.cal-cell.today { background: #eff6ff; }
+.cal-cell.today .cal-day-num { color: var(--accent); font-weight: 800; }
+.cal-day-num {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  margin-bottom: 2px; line-height: 1;
+}
+.cal-cell:not(.empty):hover { background: #f8fafc; }
+
+/* ── Чипсы визитов ── */
+.visit-chip {
+  display: block; border-radius: 6px; padding: 3px 6px;
+  font-size: 11px; font-weight: 600; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-decoration: none; cursor: pointer;
+  transition: opacity .1s;
+  line-height: 1.4;
+}
+.visit-chip:hover { opacity: .85; }
+.visit-chip.cancelled { opacity: .45; text-decoration: line-through; }
+.more-chip {
+  font-size: 10px; color: var(--text2); padding: 2px 4px;
+  cursor: pointer; font-weight: 600;
+}
+
+/* ── Добавить визит (иконка +) ── */
+.cal-add {
+  position: absolute; top: 4px; right: 4px;
+  width: 20px; height: 20px; border-radius: 6px;
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; color: #cbd5e1; display: none;
+  align-items: center; justify-content: center; text-decoration: none;
+  transition: background .1s, color .1s;
+}
+.cal-cell:not(.empty):hover .cal-add { display: flex; }
+.cal-add:hover { background: #dbeafe; color: var(--accent); }
+
+/* ── Легенда сотрудников ── */
+.emp-legend {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+}
+.emp-legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 20px;
+  border: 1.5px solid transparent;
+  cursor: pointer; text-decoration: none; color: inherit;
+  transition: border-color .1s;
+}
+.emp-legend-item:hover, .emp-legend-item.active { border-color: currentColor; }
+.emp-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ── Попап дня ── */
+.day-popup-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 200;
+  display: none; align-items: center; justify-content: center;
+}
+.day-popup-overlay.open { display: flex; }
+.day-popup {
+  background: #fff; border-radius: 16px; padding: 24px;
+  width: 340px; max-width: 95vw; max-height: 80vh;
+  overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,.18);
+}
+.day-popup-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+.popup-visit {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+}
+.popup-visit:last-child { border-bottom: none; }
+.popup-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.popup-visit-name { font-size: 13px; font-weight: 700; }
+.popup-visit-meta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* ── Мобильный ── */
+@media (max-width: 600px) {
+  .cal-cell { min-height: 60px; padding: 4px; }
+  .cal-dow  { padding: 6px 2px; font-size: 10px; }
+  .visit-chip { font-size: 10px; padding: 2px 4px; }
+  .cal-title  { font-size: 16px; }
+}
+</style>
+
+<!-- Шапка -->
+<div class="cal-header">
+  <div class="cal-nav">
+    <a href="?year={{ prev_year }}&month={{ prev_month }}{% if filter_emp %}&emp={{ filter_emp }}{% endif %}">‹</a>
+    <span class="cal-title">{{ month_name }} {{ year }}</span>
+    <a href="?year={{ next_year }}&month={{ next_month }}{% if filter_emp %}&emp={{ filter_emp }}{% endif %}">›</a>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    {% if not is_employee %}
+    <a href="?year={{ year }}&month={{ month }}" class="btn btn-secondary btn-sm {% if not filter_emp %}active{% endif %}">Все</a>
+    {% for emp in employees %}
+    <a href="?year={{ year }}&month={{ month }}&emp={{ emp.pk }}"
+       class="btn btn-sm"
+       style="background:{% if filter_emp == emp.pk|stringformat:'s' %}{{ emp_colors|default:'' }}{% else %}#f1f5f9{% endif %};
+              color:{% if filter_emp == emp.pk|stringformat:'s' %}#fff{% else %}var(--text){% endif %};
+              border:1.5px solid {% if filter_emp == emp.pk|stringformat:'s' %}transparent{% else %}var(--border){% endif %};">
+      {{ emp.get_full_name }}
+    </a>
+    {% endfor %}
+    {% endif %}
+    <a href="?year={{ today.year }}&month={{ today.month }}{% if filter_emp %}&emp={{ filter_emp }}{% endif %}"
+       class="btn btn-secondary btn-sm">Сегодня</a>
+  </div>
+</div>
+
+<!-- Легенда цветов -->
+{% if emp_colors and not is_employee %}
+<div class="emp-legend">
+  {% for v in days_map.values %}{% for visit in v %}
+  {% if visit.employee_id in emp_colors %}
+  {% with c=emp_colors|default:'' %}
+  {% endwith %}
+  {% endif %}
+  {% endfor %}{% endfor %}
+</div>
+{% endif %}
+
+<!-- Сетка -->
+<div class="cal-grid">
+  <div class="cal-dow">Пн</div>
+  <div class="cal-dow">Вт</div>
+  <div class="cal-dow">Ср</div>
+  <div class="cal-dow">Чт</div>
+  <div class="cal-dow">Пт</div>
+  <div class="cal-dow">Сб</div>
+  <div class="cal-dow">Вс</div>
+
+  {% for week in cal %}
+  {% for day in week %}
+  {% if day == 0 %}
+  <div class="cal-cell empty"></div>
+  {% else %}
+  {% with day_visits=days_map|default:'' %}
+  <div class="cal-cell {% if day == today.day and month == today.month and year == today.year %}today{% endif %}"
+       id="cell-{{ day }}">
+    <span class="cal-day-num">{{ day }}</span>
+    <a href="{% url 'visit_create' %}?date={{ year }}-{% if month < 10 %}0{% endif %}{{ month }}-{% if day < 10 %}0{% endif %}{{ day }}"
+       class="cal-add" title="Добавить визит">+</a>
+
+    {# Показываем чипсы через JS из data-атрибута #}
+  </div>
+  {% endwith %}
+  {% endif %}
+  {% endfor %}
+  {% endfor %}
+</div>
+
+<!-- Попап дня -->
+<div class="day-popup-overlay" id="dayPopup" onclick="closePopup(event)">
+  <div class="day-popup" id="dayPopupContent">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="day-popup-title" id="popupTitle"></div>
+      <button onclick="document.getElementById('dayPopup').classList.remove('open')"
+        style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);">✕</button>
+    </div>
+    <div id="popupVisits"></div>
+    <a id="popupAddLink" href="#" class="btn btn-primary btn-sm" style="margin-top:14px;display:block;text-align:center;">+ Добавить визит в этот день</a>
+  </div>
+</div>
+
+<script>
+// Данные визитов с сервера
+const VISITS_DATA = [
+  {% for day, vlist in days_map.items %}
+  {% for v in vlist %}
+  {
+    day: {{ day }},
+    pk:  {{ v.pk }},
+    type: "{{ v.visit_type }}",
+    target: "{{ v.doctor.full_name|default:v.pharmacy.name|default:'—'|escapejs }}",
+    employee: "{{ v.employee.get_full_name|escapejs }}",
+    emp_id: {{ v.employee_id }},
+    time: "{{ v.planned_date|date:'H:i' }}",
+    status: "{{ v.status }}",
+    url: "{% url 'visit_detail' v.pk %}",
+    edit_url: "{% url 'visit_edit' v.pk %}",
+  },
+  {% endfor %}
+  {% endfor %}
+];
+
+const EMP_COLORS = {
+  {% for emp_id, color in emp_colors.items %}
+  {{ emp_id }}: "{{ color }}",
+  {% endfor %}
+};
+
+const MONTH = {{ month }};
+const YEAR  = {{ year }};
+const MONTH_NAME = "{{ month_name }}";
+
+const STATUS_LABELS = {
+  planned: '📋 Запланирован',
+  done: '✅ Выполнен',
+  cancelled: '❌ Отменён',
+  postponed: '🔄 Перенесён',
+};
+
+// Заполняем ячейки чипсами
+(function buildChips() {
+  const byDay = {};
+  VISITS_DATA.forEach(v => {
+    (byDay[v.day] = byDay[v.day] || []).push(v);
+  });
+
+  Object.keys(byDay).forEach(day => {
+    const cell = document.getElementById('cell-' + day);
+    if (!cell) return;
+    const list = byDay[day];
+    const MAX_CHIPS = 3;
+
+    list.slice(0, MAX_CHIPS).forEach(v => {
+      const color = EMP_COLORS[v.emp_id] || '#64748b';
+      const chip = document.createElement('a');
+      chip.href = v.url;
+      chip.className = 'visit-chip' + (v.status === 'cancelled' ? ' cancelled' : '');
+      chip.style.background = color;
+      chip.title = v.target + ' — ' + v.employee;
+      chip.textContent = v.time + ' ' + v.target;
+      cell.appendChild(chip);
+    });
+
+    if (list.length > MAX_CHIPS) {
+      const more = document.createElement('div');
+      more.className = 'more-chip';
+      more.textContent = '+' + (list.length - MAX_CHIPS) + ' ещё';
+      more.onclick = () => openPopup(parseInt(day), list);
+      cell.appendChild(more);
+    }
+
+    // Клик по ячейке (не по чипу и не по кнопке +) → попап
+    cell.addEventListener('click', function(e) {
+      if (e.target.classList.contains('visit-chip') || e.target.classList.contains('cal-add') || e.target.classList.contains('more-chip')) return;
+      openPopup(parseInt(day), list);
+    });
+  });
+})();
+
+function openPopup(day, visits) {
+  const pad = n => String(n).padStart(2,'0');
+  const dateStr = YEAR + '-' + pad(MONTH) + '-' + pad(day);
+
+  document.getElementById('popupTitle').textContent = day + ' ' + MONTH_NAME + ' ' + YEAR;
+  document.getElementById('popupAddLink').href = `/crm/visits/create/?date=${dateStr}`;
+
+  const container = document.getElementById('popupVisits');
+  container.innerHTML = '';
+  if (!visits || !visits.length) {
+    container.innerHTML = '<div style="color:var(--text2);font-size:13px;text-align:center;padding:16px;">Визитов нет</div>';
+  } else {
+    visits.forEach(v => {
+      const color = EMP_COLORS[v.emp_id] || '#64748b';
+      const icon  = v.type === 'doctor' ? '👨‍⚕️' : '🏥';
+      const div = document.createElement('div');
+      div.className = 'popup-visit';
+      div.innerHTML = `
+        <div class="popup-dot" style="background:${color}"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="popup-visit-name">${icon} ${v.target}</div>
+          <div class="popup-visit-meta">🕐 ${v.time} · ${v.employee}</div>
+          <div class="popup-visit-meta">${STATUS_LABELS[v.status] || v.status}</div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <a href="${v.url}"      style="font-size:11px;padding:4px 8px;" class="btn btn-secondary btn-sm">→</a>
+          <a href="${v.edit_url}" style="font-size:11px;padding:4px 8px;" class="btn btn-secondary btn-sm">✏️</a>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  document.getElementById('dayPopup').classList.add('open');
+}
+
+function closePopup(e) {
+  if (e.target === document.getElementById('dayPopup')) {
+    document.getElementById('dayPopup').classList.remove('open');
+  }
+}
+</script>
+{% endblock %}

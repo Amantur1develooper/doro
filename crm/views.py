@@ -1,3 +1,5 @@
+import calendar
+from datetime import date, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -97,6 +99,8 @@ def doctor_create(request):
             if rep_id:
                 d.representative_id = rep_id
 
+        if request.FILES.get('photo'):
+            d.photo = request.FILES['photo']
         d.save()
         messages.success(request, f'Врач «{d.full_name}» добавлен')
         return redirect('doctors_list')
@@ -129,6 +133,10 @@ def doctor_edit(request, pk):
         if not is_emp:
             rep_id = request.POST.get('representative')
             doctor.representative_id = rep_id if rep_id else None
+        if request.FILES.get('photo'):
+            doctor.photo = request.FILES['photo']
+        elif request.POST.get('clear_photo'):
+            doctor.photo = None
         doctor.save()
         messages.success(request, f'Врач «{doctor.full_name}» обновлён')
         return redirect('doctor_detail', pk=pk)
@@ -386,6 +394,77 @@ def visit_complete(request, pk):
             VisitPhoto.objects.create(visit=visit, photo=photo)
         messages.success(request, 'Визит отмечен как выполненный')
     return redirect('visit_detail', pk=pk)
+
+
+@login_required
+def calendar_view(request):
+    today = date.today()
+    year  = int(request.GET.get('year',  today.year))
+    month = int(request.GET.get('month', today.month))
+
+    # Навигация месяц ±1
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, month - 1
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+
+    # Визиты за месяц
+    visits_qs = Visit.objects.select_related(
+        'employee', 'doctor', 'pharmacy'
+    ).filter(
+        planned_date__year=year, planned_date__month=month
+    )
+    if user_is_employee(request.user):
+        visits_qs = visits_qs.filter(employee=request.user)
+    elif request.user.is_manager():
+        visible_ids = _visible_user_ids(request.user)
+        visits_qs = visits_qs.filter(employee_id__in=visible_ids)
+
+    # Фильтр по сотруднику (для менеджера/босса)
+    filter_emp = request.GET.get('emp')
+    if filter_emp and not user_is_employee(request.user):
+        visits_qs = visits_qs.filter(employee_id=filter_emp)
+
+    # Группировка по дням {day: [visit, ...]}
+    days_map = {}
+    for v in visits_qs.order_by('planned_date'):
+        d = v.planned_date.date().day
+        days_map.setdefault(d, []).append(v)
+
+    # Сетка календаря — список недель, каждая неделя — список (day_num | None)
+    cal = calendar.monthcalendar(year, month)
+
+    # Цвета сотрудников
+    COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f97316','#14b8a6','#84cc16','#f43f5e','#0ea5e9']
+    emp_colors = {}
+    color_idx = 0
+    for v in visits_qs:
+        if v.employee_id not in emp_colors:
+            emp_colors[v.employee_id] = COLORS[color_idx % len(COLORS)]
+            color_idx += 1
+
+    MONTHS_RU = ['','Январь','Февраль','Март','Апрель','Май','Июнь',
+                 'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+
+    employees = _get_visible_reps(request.user) if not user_is_employee(request.user) else []
+
+    return render(request, 'crm/calendar.html', {
+        'year': year, 'month': month,
+        'month_name': MONTHS_RU[month],
+        'today': today,
+        'cal': cal,
+        'days_map': days_map,
+        'emp_colors': emp_colors,
+        'prev_year': prev_year, 'prev_month': prev_month,
+        'next_year': next_year, 'next_month': next_month,
+        'employees': employees,
+        'filter_emp': filter_emp or '',
+        'is_employee': user_is_employee(request.user),
+    })
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────

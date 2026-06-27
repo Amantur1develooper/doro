@@ -25,6 +25,7 @@ class Doctor(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         verbose_name='Представитель', related_name='assigned_doctors'
     )
+    photo = models.ImageField('Фото', upload_to='doctors/', null=True, blank=True)
     notes = models.TextField('Заметки', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

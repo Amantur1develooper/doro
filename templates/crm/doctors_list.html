@@ -75,7 +75,14 @@
       {% for d in doctors %}
       <tr>
         <td>
-          <a href="{% url 'doctor_detail' d.pk %}" style="color:var(--accent);font-weight:600;">{{ d.full_name }}</a>
+          <div style="display:flex;align-items:center;gap:10px;">
+            {% if d.photo %}
+            <img src="{{ d.photo.url }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border);">
+            {% else %}
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#dbeafe,#93c5fd);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">👨‍⚕️</div>
+            {% endif %}
+            <a href="{% url 'doctor_detail' d.pk %}" style="color:var(--accent);font-weight:600;">{{ d.full_name }}</a>
+          </div>
         </td>
         <td>{{ d.specialty }}</td>
         <td>{{ d.institution|default:"—" }}</td>

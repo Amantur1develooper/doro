@@ -464,8 +464,12 @@ textarea{resize:vertical;}
   <div class="s-section">
     <div class="s-label">CRM</div>
     <a href="{% url 'visits_list' %}" onclick="closeSidebar()"
-       class="s-link {% if 'visit' in request.resolver_match.url_name %}active{% endif %}">
+       class="s-link {% if request.resolver_match.url_name == 'visits_list' %}active{% endif %}">
       <span class="si">📅</span>Визиты
+    </a>
+    <a href="{% url 'calendar' %}" onclick="closeSidebar()"
+       class="s-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">
+      <span class="si">🗓️</span>Календарь
     </a>
     <a href="{% url 'doctors_list' %}" onclick="closeSidebar()"
        class="s-link {% if 'doctor' in request.resolver_match.url_name %}active{% endif %}">

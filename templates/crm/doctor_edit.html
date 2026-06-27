@@ -10,8 +10,25 @@
   <div class="card">
     <h2 style="font-size:16px;font-weight:700;margin-bottom:20px;">✏️ Редактирование: {{ doctor.full_name }}</h2>
 
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
+
+      <!-- Фото -->
+      <div style="margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+        <div id="photoPreview" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#dbeafe,#bfdbfe);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;overflow:hidden;border:2px solid var(--border);">
+          {% if doctor.photo %}<img src="{{ doctor.photo.url }}" style="width:100%;height:100%;object-fit:cover;">{% else %}👨‍⚕️{% endif %}
+        </div>
+        <div>
+          <label style="display:inline-block;cursor:pointer;background:#f1f5f9;border:1.5px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--text);" for="photoInput">📷 {% if doctor.photo %}Заменить фото{% else %}Добавить фото{% endif %}</label>
+          <input type="file" name="photo" id="photoInput" accept="image/*" style="display:none;" onchange="previewPhoto(this)">
+          {% if doctor.photo %}
+          <label style="display:inline-block;cursor:pointer;background:#fee2e2;border:1.5px solid #fca5a5;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;color:#b91c1c;margin-left:6px;">
+            <input type="checkbox" name="clear_photo" value="1" style="display:none;" onchange="clearPhoto(this)"> ✕ Удалить
+          </label>
+          {% endif %}
+          <div style="font-size:11px;color:var(--text2);margin-top:4px;">Необязательно · JPG, PNG, до 5 МБ</div>
+        </div>
+      </div>
       <div class="grid-2">
         <div>
           <label>ФИО *</label>
@@ -69,4 +86,21 @@
     </form>
   </div>
 </div>
+<script>
+function previewPhoto(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('photoPreview').innerHTML =
+        `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+function clearPhoto(cb) {
+  cb.checked = true;
+  document.getElementById('photoPreview').innerHTML = '👨‍⚕️';
+  document.getElementById('photoInput').value = '';
+}
+</script>
 {% endblock %}
